@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log File Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        #timelineCanvas {
+            border: 1px solid #ddd;
+            margin-top: 20px;
+        }
+        .file-info {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
+        .highlighted {
+            background-color: yellow;
+        }
+        .log-line {
+            margin-bottom: 2px;
+        }
+        #timelineContainer {
+            position: relative;
+            width: 800px;
+            height: 300px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+        }
+        #timelineCanvas {
+            position: absolute;
+        }
+        #timelineContainer {
+            display: none; /* Hide timeline container by default */
+        }
+        .toggle-container {
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .filter-container {
+            margin-bottom: 10px;
+        }
+        #filterContainer {
+            display: none; /* Hide filters by default */
+        }
+        #filterContainer.active {
+            display: block; /* Show filters when active */
+        }
+        #tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 300px;
+            word-wrap: break-word;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>CNNT Log Analyzer</h1>
+    <input type="file" id="fileInput" accept=".txt, .log">
+    <div id="logFileInfo" class="file-info"></div>
+    <br><br>
+    <div id="filterContainer">
+        <h2>Filters</h2>
+        <button onclick="addFilter()">Add Filter</button>
+        <button onclick="exportFilters()">Export Filters</button>
+        <input type="file" id="importInput" accept=".json" onchange="importFilters(event)">
+        <div id="filterFileInfo" class="file-info"></div>
+        <br><br>
+        <div id="filters"></div>
+    </div>
+    <br>
+    <h2>Timeline</h2>
+    <div id="timelineContainer">
+        <canvas id="timelineCanvas"></canvas>
+    </div>
+    <br>
+    <h2>Log</h2>
+    <div id="logContent">
+    </div>
+    <div id="tooltip"></div>
+    <script>
+        let logLines = [];
+        let filters = [];
+        let logEvents = [];
+        let logFileName = '';
+        let filterFileName = '';
+        let eventSpacing = 80;
+        let isLogFileLoaded = false;
+
+        function loadLogFile(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                // If no file is selected (i.e., the selection was canceled), do nothing
+                return;
+            }
+            logFileName = file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                logLines = e.target.result.split('\n');
+                updateLogFileInfo();
+                if (!isLogFileLoaded) {
+                    activateFilters(); // Activate filters only if this is the first file loaded
+                }
+                isLogFileLoaded = true;
+                displayLogContent(); // Display log content immediately after loading
+            };
+            reader.readAsText(file);
+        }
+
+        function activateFilters() {
+            const filterContainer = document.getElementById('filterContainer');
+            filterContainer.classList.add('active');
+            addFilter(); // Add an initial filter
+        }
+
+        function updateLogFileInfo() {
+            const logFileInfo = document.getElementById('logFileInfo');
+            logFileInfo.textContent = `Loaded log file: ${logFileName}`;
+        }
+
+        function updateFilterFileInfo() {
+            const filterFileInfo = document.getElementById('filterFileInfo');
+            filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
+        }
+
+        function displayLogContent() {
+            if (!isLogFileLoaded) return; // Don't display if no log file is loaded
+
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = '';
+            logEvents = [];
+            for (let [index, line] of logLines.entries()) {
+                const timestamp = parseTimestamp(line);
+                if (!timestamp) continue;
+
+                let matchedFilter = null;
+                for (let filter of filters) {
+                    if (filter.checked && evaluateFilter(line, filter)) {
+                        matchedFilter = filter;
+                        break;
+                    }
+                }
+                if (matchedFilter) {
+                    const lineElement = document.createElement('div');
+                    lineElement.textContent = line;
+                    lineElement.style.color = matchedFilter.color;
+                    lineElement.classList.add('log-line');
+                    lineElement.dataset.index = index;
+                    logContent.appendChild(lineElement);
+                    logEvents.push({
+                        timestamp,
+                        color: matchedFilter.color,
+                        index,
+                        label: matchedFilter.label
+                    });
+                }
+            }
+            toggleTimelineVisibility();
+            if (logEvents.length > 0) {
+                drawTimeline();
+            }
+        }
+
+        function toggleTimelineVisibility() {
+            const timelineContainer = document.getElementById('timelineContainer');
+            if (logLines.length > 0 && logEvents.length > 0) {
+                timelineContainer.style.display = 'block';
+            } else {
+                timelineContainer.style.display = 'none';
+            }
+        }
+
+        function evaluateFilter(line, filter) {
+            if (filter.expression === "") return false;
+            if (filter.isRegex) {
+                try {
+                    const regex = new RegExp(filter.expression);
+                    return regex.test(line);
+                } catch (e) {
+                    console.error("Invalid regex:", e);
+                    return false;
+                }
+            } else {
+                const keywords = filter.expression.split(' ');
+                return keywords.every(keyword => line.includes(keyword));
+            }
+        }
+
+        function addFilter() {
+            if (!isLogFileLoaded) return; // Don't add filter if no log file is loaded
+
+            const filterContainer = document.getElementById('filters');
+            const filterDiv = document.createElement('div');
+            filterDiv.classList.add('filter-container');
+            filterDiv.innerHTML = `
+                <input type="checkbox" checked>
+                <input type="text" placeholder="Filter expression">
+                <input type="color" value="#000000">
+                <input type="text" placeholder="Filter label">
+                <div class="toggle-container">
+                    <label class="toggle-switch">
+                        <input type="checkbox" onchange="toggleRegex(this)">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Regex</span>
+                </div>
+                <button onclick="removeFilter(this)">Remove</button>
+            `;
+            filterContainer.appendChild(filterDiv);
+            filters.push({
+                checked: true,
+                expression: '',
+                color: '#000000',
+                label: '',
+                isRegex: false
+            });
+            displayLogContent(); // Refresh display after adding filter
+        }
+
+        function toggleRegex(checkbox) {
+            if (!isLogFileLoaded) return; // Don't toggle if no log file is loaded
+
+            const index = Array.from(checkbox.closest('.filter-container').parentNode.children).indexOf(checkbox.closest('.filter-container'));
+            filters[index].isRegex = checkbox.checked;
+            displayLogContent();
+        }
+
+        function removeFilter(button) {
+            if (!isLogFileLoaded) return; // Don't remove if no log file is loaded
+
+            const filterDiv = button.closest('.filter-container');
+            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+            filters.splice(index, 1);
+            filterDiv.remove();
+            displayLogContent();
+        }
+
+        async function exportFilters() {
+            try {
+                const filtersToExport = filters.map(filter => ({
+                    ...filter,
+                    expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression
+                }));
+                const data = JSON.stringify(filtersToExport, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const options = {
+                    types: [{
+                        description: 'JSON File',
+                        accept: {'application/json': ['.json']},
+                    }],
+                    suggestedName: `filter.json`
+                };
+                const fileHandle = await window.showSaveFilePicker(options);
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                console.log("File saved successfully");
+            } catch (err) {
+                console.error("Error exporting file:", err);
+                alert("An error occurred while saving the file. Please try again.");
+            }
+        }
+
+        function escapeRegex(regex) {
+            return regex.replace(/\\/g, '\\\\');
+        }
+
+        function importFilters(event) {
+            const file = event.target.files[0];
+            filterFileName = file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                filters = JSON.parse(e.target.result);
+                // Unescape regex strings
+                filters.forEach(filter => {
+                    if (filter.isRegex) {
+                        filter.expression = unescapeRegex(filter.expression);
+                    }
+                });
+                renderFilters();
+                displayLogContent();
+                drawTimeline();
+                updateFilterFileInfo();
+            };
+            reader.readAsText(file);
+        }
+
+        function unescapeRegex(regex) {
+            return regex.replace(/\\(.)/g, '$1');
+        }
+
+        function renderFilters() {
+            const filterContainer = document.getElementById('filters');
+            filterContainer.innerHTML = '';
+            for (let filter of filters) {
+                const filterDiv = document.createElement('div');
+                filterDiv.classList.add('filter-container');
+                filterDiv.innerHTML = `
+                    <input type="checkbox" ${filter.checked ? 'checked' : ''}>
+                    <input type="text" placeholder="Filter expression" value="${escapeHtml(filter.expression)}">
+                    <input type="color" value="${filter.color}">
+                    <input type="text" placeholder="Filter label" value="${escapeHtml(filter.label)}">
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" onchange="toggleRegex(this)" ${filter.isRegex ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Regex</span>
+                    </div>
+                    <button onclick="removeFilter(this)">Remove</button>
+                `;
+                filterContainer.appendChild(filterDiv);
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        function parseTimestamp(line) {
+            const match = line.match(/^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/);
+            if (match) {
+                const [, timestamp] = match;
+                const [date, time] = timestamp.split(' ');
+                const [month, day] = date.split('-');
+                const [hour, minute, secondWithMs] = time.split(':');
+                const [second, ms] = secondWithMs.split('.');
+                return new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms);
+            }
+            return null;
+        }
+
+        let timelineOffset = 0;
+        let isDragging = false;
+        let lastMouseX;
+
+        function drawTimeline() {
+            let container = document.getElementById('timelineContainer');
+            let canvas = document.getElementById('timelineCanvas');
+            let ctx = canvas.getContext('2d');
+
+            if (logEvents.length === 0) return;
+
+            canvas.width = Math.max(container.clientWidth, logEvents.length * eventSpacing);
+            canvas.height = 300;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            ctx.font = '10px Arial';
+            for (let i = 0; i < logEvents.length; i++) {
+                const event = logEvents[i];
+                const x = i * eventSpacing + (eventSpacing / 2);
+
+                ctx.fillStyle = event.color;
+                ctx.beginPath();
+                ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.fillStyle = event.color;
+                ctx.save();
+                ctx.translate(x, canvas.height / 2 + 10);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                ctx.restore();
+
+                ctx.save();
+                ctx.translate(x, canvas.height / 2 - 10);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(event.label, 0, 0);
+                ctx.restore();
+
+                // Calculate and display time elapsed since previous event
+                if (i > 0) {
+                    const prevEvent = logEvents[i - 1];
+                    const timeElapsed = event.timestamp - prevEvent.timestamp;
+                    const timeElapsedStr = formatTimeElapsed(timeElapsed);
+                    
+                    ctx.save();
+                    ctx.translate(x, canvas.height / 2 + 30);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.fillText(`(${timeElapsedStr})`, 0, 0);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function formatTimeElapsed(timeElapsed) {
+            const seconds = Math.floor(timeElapsed / 1000);
+            const milliseconds = timeElapsed % 1000;
+            return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
+        }
+
+        function initializeTimelineInteractions() {
+            const container = document.getElementById('timelineContainer');
+            const canvas = document.getElementById('timelineCanvas');
+            const tooltip = document.getElementById('tooltip');
+
+            canvas.addEventListener('mousedown', function(event) {
+                isDragging = true;
+                lastMouseX = event.clientX;
+            });
+
+            document.addEventListener('mousemove', function(event) {
+                if (isDragging) {
+                    const deltaX = event.clientX - lastMouseX;
+                    container.scrollLeft -= deltaX;
+                    lastMouseX = event.clientX;
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+            });
+
+            canvas.addEventListener('click', function(event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const clickedIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
+
+                if (clickedIndex >= 0 && clickedIndex < logEvents.length) {
+                    highlightLogLine(logEvents[clickedIndex].index);
+                }
+            });
+
+            canvas.addEventListener('mousemove', function(event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const hoverIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
+
+                if (hoverIndex >= 0 && hoverIndex < logEvents.length) {
+                    const logLine = logLines[logEvents[hoverIndex].index];
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (event.pageX  + 10) + 'px';
+                    tooltip.style.top = (event.pageY + 10) + 'px';
+                    tooltip.textContent = logLine;
+                    console.log("tooltip.style.left", tooltip.style.left, "tooltip.style.top", tooltip.style.top);
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseout', function() {
+                tooltip.style.display = 'none';
+            });
+
+            // Add wheel event listener for zooming
+            canvas.addEventListener('wheel', function(event) {
+                event.preventDefault();
+                const zoomIntensity = 0.1;
+                const wheel = event.deltaY < 0 ? 1 : -1;
+                const zoom = Math.exp(wheel * zoomIntensity);
+                
+                eventSpacing *= zoom;
+                eventSpacing = Math.max(20, Math.min(200, eventSpacing)); // Limit zoom level
+
+                drawTimeline();
+            });
+        }
+
+        function highlightLogLine(index) {
+            const logContent = document.getElementById('logContent');
+            const logLines = logContent.children;
+            
+            for (let line of logLines) {
+                line.classList.remove('highlighted');
+            }
+
+            const clickedLine = logContent.querySelector(`[data-index="${index}"]`);
+            if (clickedLine) {
+                clickedLine.classList.add('highlighted');
+                clickedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', loadLogFile);
+        // Reset file input when clicked, to ensure the 'change' event fires even if the same file is selected
+        document.getElementById('fileInput').addEventListener('click', function(event) {
+            event.target.value = null;
+        });
+
+        document.getElementById('filters').addEventListener('change', function(event) {
+            if (!isLogFileLoaded) return; // Don't process changes if no log file is loaded
+
+            const filterDiv = event.target.closest('.filter-container');
+            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+            if (event.target.type === 'checkbox' && !event.target.classList.contains('toggle-switch')) {
+                filters[index].checked = event.target.checked;
+            } else if (event.target.type === 'text') {
+                if (event.target.placeholder === 'Filter expression') {
+                    filters[index].expression = event.target.value;
+                } else if (event.target.placeholder === 'Filter label') {
+                    filters[index].label = event.target.value;
+                }
+            } else if (event.target.type === 'color') {
+                filters[index].color = event.target.value;
+            }
+            displayLogContent();
+        });
+
+        initializeTimelineInteractions();
+    </script>
+</body>
+</html>
