@@ -134,6 +134,7 @@
         let logLines = [];
         let filters = [];
         let logEvents = [];
+        let matchingList = []; // New global list to store matching lines
         let logFileName = '';
         let filterFileName = '';
         let eventSpacing = 80;
@@ -142,7 +143,6 @@
         function loadLogFile(event) {
             const file = event.target.files[0];
             if (!file) {
-                // If no file is selected (i.e., the selection was canceled), do nothing
                 return;
             }
             logFileName = file.name;
@@ -151,12 +151,83 @@
                 logLines = e.target.result.split('\n');
                 updateLogFileInfo();
                 if (!isLogFileLoaded) {
-                    activateFilters(); // Activate filters only if this is the first file loaded
+                    activateFilters();
                 }
                 isLogFileLoaded = true;
-                displayLogContent(); // Display log content immediately after loading
+                updateMatchingList(); // Update matchingList after loading the file
+                displayLogContent();
             };
             reader.readAsText(file);
+        }
+
+        function updateMatchingList() {
+            matchingList = [];
+            for (let [index, line] of logLines.entries()) {
+                const timestamp = parseTimestamp(line);
+                if (!timestamp) continue;
+
+                for (let [filterIndex, filter] of filters.entries()) {
+                    if (evaluateFilter(line, filter)) {
+                        insertIntoMatchingList({
+                            timestamp,
+                            line,
+                            index,
+                            filterIndex
+                        });
+                    }
+                }
+            }
+        }
+
+        function insertIntoMatchingList(entry) {
+            const index = binarySearch(matchingList, entry.timestamp);
+            matchingList.splice(index, 0, entry);
+        }
+
+        function binarySearch(arr, timestamp) {
+            let low = 0;
+            let high = arr.length;
+
+            while (low < high) {
+                let mid = (low + high) >>> 1;
+                if (arr[mid].timestamp < timestamp) {
+                    low = mid + 1;
+                } else {
+                    high = mid;
+                }
+            }
+            return low;
+        }
+
+        function displayLogContent() {
+            if (!isLogFileLoaded) return;
+
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = '';
+            logEvents = [];
+
+            for (let entry of matchingList) {
+                if (filters[entry.filterIndex].checked) {
+                    const lineElement = document.createElement('div');
+                    lineElement.textContent = entry.line;
+                    lineElement.style.color = filters[entry.filterIndex].color;
+                    lineElement.classList.add('log-line');
+                    lineElement.dataset.index = entry.index;
+                    logContent.appendChild(lineElement);
+
+                    logEvents.push({
+                        timestamp: entry.timestamp,
+                        color: filters[entry.filterIndex].color,
+                        index: entry.index,
+                        label: filters[entry.filterIndex].label
+                    });
+                }
+            }
+
+            toggleTimelineVisibility();
+            if (logEvents.length > 0) {
+                drawTimeline();
+            }
         }
 
         function activateFilters() {
@@ -173,44 +244,6 @@
         function updateFilterFileInfo() {
             const filterFileInfo = document.getElementById('filterFileInfo');
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
-        }
-
-        function displayLogContent() {
-            if (!isLogFileLoaded) return; // Don't display if no log file is loaded
-
-            const logContent = document.getElementById('logContent');
-            logContent.innerHTML = '';
-            logEvents = [];
-            for (let [index, line] of logLines.entries()) {
-                const timestamp = parseTimestamp(line);
-                if (!timestamp) continue;
-
-                let matchedFilter = null;
-                for (let filter of filters) {
-                    if (filter.checked && evaluateFilter(line, filter)) {
-                        matchedFilter = filter;
-                        break;
-                    }
-                }
-                if (matchedFilter) {
-                    const lineElement = document.createElement('div');
-                    lineElement.textContent = line;
-                    lineElement.style.color = matchedFilter.color;
-                    lineElement.classList.add('log-line');
-                    lineElement.dataset.index = index;
-                    logContent.appendChild(lineElement);
-                    logEvents.push({
-                        timestamp,
-                        color: matchedFilter.color,
-                        index,
-                        label: matchedFilter.label
-                    });
-                }
-            }
-            toggleTimelineVisibility();
-            if (logEvents.length > 0) {
-                drawTimeline();
-            }
         }
 
         function toggleTimelineVisibility() {
@@ -239,7 +272,7 @@
         }
 
         function addFilter() {
-            if (!isLogFileLoaded) return; // Don't add filter if no log file is loaded
+            if (!isLogFileLoaded) return;
 
             const filterContainer = document.getElementById('filters');
             const filterDiv = document.createElement('div');
@@ -266,24 +299,27 @@
                 label: '',
                 isRegex: false
             });
-            displayLogContent(); // Refresh display after adding filter
+            updateMatchingList(); // Update matchingList after adding a new filter
+            displayLogContent();
         }
 
         function toggleRegex(checkbox) {
-            if (!isLogFileLoaded) return; // Don't toggle if no log file is loaded
+            if (!isLogFileLoaded) return;
 
             const index = Array.from(checkbox.closest('.filter-container').parentNode.children).indexOf(checkbox.closest('.filter-container'));
             filters[index].isRegex = checkbox.checked;
+            updateMatchingList(); // Update matchingList after toggling regex
             displayLogContent();
         }
 
         function removeFilter(button) {
-            if (!isLogFileLoaded) return; // Don't remove if no log file is loaded
+            if (!isLogFileLoaded) return;
 
             const filterDiv = button.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
             filters.splice(index, 1);
             filterDiv.remove();
+            updateMatchingList(); // Update matchingList after removing a filter
             displayLogContent();
         }
 
@@ -330,9 +366,9 @@
                     }
                 });
                 renderFilters();
-                displayLogContent();
-                drawTimeline();
                 updateFilterFileInfo();
+                updateMatchingList(); // Update matchingList after toggling regex
+                displayLogContent();
             };
             reader.readAsText(file);
         }
@@ -495,7 +531,6 @@
                     tooltip.style.left = (event.pageX  + 10) + 'px';
                     tooltip.style.top = (event.pageY + 10) + 'px';
                     tooltip.textContent = logLine;
-                    console.log("tooltip.style.left", tooltip.style.left, "tooltip.style.top", tooltip.style.top);
                 } else {
                     tooltip.style.display = 'none';
                 }
@@ -534,31 +569,53 @@
             }
         }
 
-        document.getElementById('fileInput').addEventListener('change', loadLogFile);
-        // Reset file input when clicked, to ensure the 'change' event fires even if the same file is selected
-        document.getElementById('fileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-
         document.getElementById('filters').addEventListener('change', function(event) {
-            if (!isLogFileLoaded) return; // Don't process changes if no log file is loaded
+            if (!isLogFileLoaded) return;
 
             const filterDiv = event.target.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
             if (event.target.type === 'checkbox' && !event.target.classList.contains('toggle-switch')) {
                 filters[index].checked = event.target.checked;
+                displayLogContent(); // Only update display when toggling filter on/off
             } else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
                     filters[index].expression = event.target.value;
+                    updateFilterMatchingList(index); // Update matchingList for this filter
+                    displayLogContent();
                 } else if (event.target.placeholder === 'Filter label') {
                     filters[index].label = event.target.value;
+                    displayLogContent();
                 }
             } else if (event.target.type === 'color') {
                 filters[index].color = event.target.value;
+                displayLogContent();
             }
-            displayLogContent();
         });
 
+        function updateFilterMatchingList(filterIndex) {
+            // Remove entries associated with this filter
+            matchingList = matchingList.filter(entry => entry.filterIndex !== filterIndex);
+
+            // Add new matching entries
+            for (let [index, line] of logLines.entries()) {
+                const timestamp = parseTimestamp(line);
+                if (!timestamp) continue;
+
+                if (evaluateFilter(line, filters[filterIndex])) {
+                    insertIntoMatchingList({
+                        timestamp,
+                        line,
+                        index,
+                        filterIndex
+                    });
+                }
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', loadLogFile);
+        document.getElementById('fileInput').addEventListener('click', function(event) {
+            event.target.value = null;
+        });
         initializeTimelineInteractions();
     </script>
 </body>
