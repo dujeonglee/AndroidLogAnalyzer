@@ -315,11 +315,31 @@
         function toggleRegex(checkbox) {
             if (!isLogFileLoaded) return;
 
-            const index = Array.from(checkbox.closest('.filter-container').parentNode.children).indexOf(checkbox.closest('.filter-container'));
+            const filterDiv = checkbox.closest('.filter-container');
+            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
             filters[index].isRegex = checkbox.checked;
-            updateMatchingList(); // Update matchingList after toggling regex
+            
+            // Remove entries associated with this filter
+            matchingList = matchingList.filter(entry => entry.filterIndex !== index);
+            
+            // Re-evaluate and add new matching entries
+            for (let [lineIndex, line] of logLines.entries()) {
+                const timestamp = parseTimestamp(line);
+                if (!timestamp) continue;
+
+                if (evaluateFilter(line, filters[index])) {
+                    insertIntoMatchingList({
+                        timestamp,
+                        line,
+                        index: lineIndex,
+                        filterIndex: index
+                    });
+                }
+            }
+            
             displayLogContent();
         }
+
 
         function removeFilter(button) {
             if (!isLogFileLoaded) return;
@@ -605,7 +625,7 @@
             matchingList = matchingList.filter(entry => entry.filterIndex !== filterIndex);
 
             // Add new matching entries
-            for (let [index, line] of logLines.entries()) {
+            for (let [lineIndex, line] of logLines.entries()) {
                 const timestamp = parseTimestamp(line);
                 if (!timestamp) continue;
 
@@ -613,12 +633,13 @@
                     insertIntoMatchingList({
                         timestamp,
                         line,
-                        index,
+                        index: lineIndex,
                         filterIndex
                     });
                 }
             }
         }
+
 
         document.getElementById('fileInput').addEventListener('change', loadLogFile);
         document.getElementById('fileInput').addEventListener('click', function(event) {
