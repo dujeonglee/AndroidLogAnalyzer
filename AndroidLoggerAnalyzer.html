@@ -211,7 +211,6 @@
 
             const logContent = document.getElementById('logContent');
             logContent.innerHTML = '';
-            logEvents = [];
 
             for (let entry of matchingList) {
                 if (filters[entry.filterIndex].checked) {
@@ -222,21 +221,11 @@
                     lineElement.dataset.index = entry.index;
                     lineElement.dataset.filterIndex = entry.filterIndex;
                     logContent.appendChild(lineElement);
-
-                    logEvents.push({
-                        timestamp: entry.timestamp,
-                        color: filters[entry.filterIndex].color,
-                        index: entry.index,
-                        filterIndex: entry.filterIndex,
-                        label: filters[entry.filterIndex].label
-                    });
                 }
             }
 
             toggleTimelineVisibility();
-            if (logEvents.length > 0) {
-                drawTimeline();
-            }
+            drawTimeline(); // Call drawTimeline here, after all updates are done
         }
 
         function activateFilters() {
@@ -319,27 +308,9 @@
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
             filters[index].isRegex = checkbox.checked;
             
-            // Remove entries associated with this filter
-            matchingList = matchingList.filter(entry => entry.filterIndex !== index);
-            
-            // Re-evaluate and add new matching entries
-            for (let [lineIndex, line] of logLines.entries()) {
-                const timestamp = parseTimestamp(line);
-                if (!timestamp) continue;
-
-                if (evaluateFilter(line, filters[index])) {
-                    insertIntoMatchingList({
-                        timestamp,
-                        line,
-                        index: lineIndex,
-                        filterIndex: index
-                    });
-                }
-            }
-            
-            displayLogContent();
+            updateFilterMatchingList(index);
+            updateDisplayAndTimeline(); // Pass false to indicate we don't need to redraw the timeline yet
         }
-
 
         function removeFilter(button) {
             if (!isLogFileLoaded) return;
@@ -602,21 +573,21 @@
 
             const filterDiv = event.target.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            if (event.target.type === 'checkbox' && !event.target.classList.contains('toggle-switch')) {
+            if (event.target.type === 'checkbox' && event.target.classList.contains('toggle-switch')) {
                 filters[index].checked = event.target.checked;
-                displayLogContent(); // Only update display when toggling filter on/off
+                updateDisplayAndTimeline();
             } else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
                     filters[index].expression = event.target.value;
-                    updateFilterMatchingList(index); // Update matchingList for this filter
-                    displayLogContent();
+                    updateFilterMatchingList(index);
+                    updateDisplayAndTimeline();
                 } else if (event.target.placeholder === 'Filter label') {
                     filters[index].label = event.target.value;
-                    displayLogContent();
+                    updateDisplayAndTimeline();
                 }
             } else if (event.target.type === 'color') {
                 filters[index].color = event.target.value;
-                displayLogContent();
+                updateDisplayAndTimeline();
             }
         });
 
@@ -640,6 +611,25 @@
             }
         }
 
+        function updateDisplayAndTimeline() {
+            updateLogEvents();
+            displayLogContent();
+        }
+
+        function updateLogEvents() {
+            logEvents = [];
+            for (let entry of matchingList) {
+                if (filters[entry.filterIndex].checked) {
+                    logEvents.push({
+                        timestamp: entry.timestamp,
+                        color: filters[entry.filterIndex].color,
+                        index: entry.index,
+                        filterIndex: entry.filterIndex,
+                        label: filters[entry.filterIndex].label
+                    });
+                }
+            }
+        }
 
         document.getElementById('fileInput').addEventListener('change', loadLogFile);
         document.getElementById('fileInput').addEventListener('click', function(event) {
