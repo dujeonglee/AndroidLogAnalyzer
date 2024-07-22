@@ -180,20 +180,27 @@
         }
 
         function insertIntoMatchingList(entry) {
-            const index = binarySearch(matchingList, entry.timestamp);
+            const index = binarySearchWithIndex(matchingList, entry);
             matchingList.splice(index, 0, entry);
         }
 
-        function binarySearch(arr, timestamp) {
+        function binarySearchWithIndex(arr, entry) {
             let low = 0;
             let high = arr.length;
 
             while (low < high) {
                 let mid = (low + high) >>> 1;
-                if (arr[mid].timestamp < timestamp) {
+                if (arr[mid].timestamp < entry.timestamp) {
                     low = mid + 1;
-                } else {
+                } else if (arr[mid].timestamp > entry.timestamp) {
                     high = mid;
+                } else {
+                    // If timestamps are equal, compare the original indices
+                    if (arr[mid].index < entry.index) {
+                        low = mid + 1;
+                    } else {
+                        high = mid;
+                    }
                 }
             }
             return low;
@@ -213,12 +220,14 @@
                     lineElement.style.color = filters[entry.filterIndex].color;
                     lineElement.classList.add('log-line');
                     lineElement.dataset.index = entry.index;
+                    lineElement.dataset.filterIndex = entry.filterIndex;
                     logContent.appendChild(lineElement);
 
                     logEvents.push({
                         timestamp: entry.timestamp,
                         color: filters[entry.filterIndex].color,
                         index: entry.index,
+                        filterIndex: entry.filterIndex,
                         label: filters[entry.filterIndex].label
                     });
                 }
@@ -467,7 +476,6 @@
                 ctx.fillText(event.label, 0, 0);
                 ctx.restore();
 
-                // Calculate and display time elapsed since previous event
                 if (i > 0) {
                     const prevEvent = logEvents[i - 1];
                     const timeElapsed = event.timestamp - prevEvent.timestamp;
