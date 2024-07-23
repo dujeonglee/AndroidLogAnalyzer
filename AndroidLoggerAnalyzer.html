@@ -184,39 +184,6 @@
             reader.readAsText(file);
         }
 
-        function updateMatchingList() {
-            // Clear the existing matching list
-            matchingList = [];
-            // Iterate through each line in the log
-            for (let [index, line] of logLines.entries()) {
-                // Parse the timestamp from the current line
-                const timestamp = parseTimestamp(line);
-                // Skip this line if no valid timestamp is found
-                if (!timestamp) continue;
-                // Check the line against each filter
-                for (let [filterIndex, filter] of filters.entries()) {
-                    // If the line matches the current filter
-                    if (evaluateFilter(line, filter)) {
-                        // Add the matching line info to the matchingList
-                        insertIntoMatchingList({
-                            timestamp,  // Parsed timestamp
-                            line,       // The full log line
-                            index,      // Index of the line in logLines
-                            filterIndex // Index of the matching filter
-                        });
-                    }
-                }
-            }
-        }
-
-        function insertIntoMatchingList(entry) {
-            // Find the correct insertion point using binary search
-            const index = binarySearchWithIndex(matchingList, entry);
-            // Insert the new entry at the found index, 
-            // shifting existing elements if necessary
-            matchingList.splice(index, 0, entry);
-        }
-
         function binarySearchWithIndex(arr, entry) {
             // Initialize search boundaries
             let low = 0;
@@ -244,6 +211,39 @@
             }
             // Return the insertion point
             return low;
+        }
+
+        function insertIntoMatchingList(entry) {
+            // Find the correct insertion point using binary search
+            const index = binarySearchWithIndex(matchingList, entry);
+            // Insert the new entry at the found index, 
+            // shifting existing elements if necessary
+            matchingList.splice(index, 0, entry);
+        }
+
+        function updateMatchingList() {
+            // Clear the existing matching list
+            matchingList = [];
+            // Iterate through each line in the log
+            for (let [index, line] of logLines.entries()) {
+                // Parse the timestamp from the current line
+                const timestamp = parseTimestamp(line);
+                // Skip this line if no valid timestamp is found
+                if (!timestamp) continue;
+                // Check the line against each filter
+                for (let [filterIndex, filter] of filters.entries()) {
+                    // If the line matches the current filter
+                    if (evaluateFilter(line, filter)) {
+                        // Add the matching line info to the matchingList
+                        insertIntoMatchingList({
+                            timestamp,  // Parsed timestamp
+                            line,       // The full log line
+                            index,      // Index of the line in logLines
+                            filterIndex // Index of the matching filter
+                        });
+                    }
+                }
+            }
         }
 
         function displayLogContent() {
