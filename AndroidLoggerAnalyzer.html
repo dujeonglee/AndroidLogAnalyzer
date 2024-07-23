@@ -279,25 +279,6 @@
             drawTimeline();
         }
 
-        function updateLogEvents() {
-            // Clear the existing log events array
-            logEvents = [];
-            // Iterate through each entry in the matching list
-            for (let entry of matchingList) {
-                // Check if the filter for this entry is currently active
-                if (filters[entry.filterIndex].checked) {
-                    // Add a new event object to the logEvents array
-                    logEvents.push({
-                        timestamp: entry.timestamp,  // Time of the log entry
-                        color: filters[entry.filterIndex].color,  // Color associated with the filter
-                        index: entry.index,  // Original index in the log file
-                        filterIndex: entry.filterIndex,  // Index of the matching filter
-                        label: filters[entry.filterIndex].label  // Label of the filter
-                    });
-                }
-            }
-        }
-
         // Function to activate the filter interface
         function activateFilters() {
             // Get the filter container element
@@ -612,6 +593,69 @@
             return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         }
 
+        // Function to highlight a specific log line
+        function highlightLogLine(index) {
+            const logContent = document.getElementById('logContent');
+            const logLines = logContent.children;
+            // Remove highlight from all lines
+            for (let line of logLines) {
+                line.classList.remove('highlighted');
+            }
+            // Add highlight to the clicked line and scroll to it
+            const clickedLine = logContent.querySelector(`[data-index="${index}"]`);
+            if (clickedLine) {
+                clickedLine.classList.add('highlighted');
+                clickedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Function to update the matching list for a specific filter
+        function updateFilterMatchingList(filterIndex) {
+            // Remove existing entries for this filter
+            matchingList = matchingList.filter(entry => entry.filterIndex !== filterIndex);
+            // Iterate through all log lines
+            for (let [lineIndex, line] of logLines.entries()) {
+                // Parse timestamp from the log line
+                const timestamp = parseTimestamp(line);
+                if (!timestamp) continue; // Skip lines without a valid timestamp
+                // If the line matches the filter, add it to the matching list
+                if (evaluateFilter(line, filters[filterIndex])) {
+                    insertIntoMatchingList({
+                        timestamp,
+                        line,
+                        index: lineIndex,
+                        filterIndex
+                    });
+                }
+            }
+        }
+
+        // Function to update both the display and timeline
+        function updateDisplayAndTimeline() {
+            updateLogEvents();
+            displayLogContent();
+        }
+
+        // Function to update log events based on the matching list and active filters
+        function updateLogEvents() {
+            // Clear the existing log events array
+            logEvents = [];
+            // Iterate through each entry in the matching list
+            for (let entry of matchingList) {
+                // Check if the filter for this entry is currently active
+                if (filters[entry.filterIndex].checked) {
+                    // Add a new event object to the logEvents array
+                    logEvents.push({
+                        timestamp: entry.timestamp,  // Time of the log entry
+                        color: filters[entry.filterIndex].color,  // Color associated with the filter
+                        index: entry.index,  // Original index in the log file
+                        filterIndex: entry.filterIndex,  // Index of the matching filter
+                        label: filters[entry.filterIndex].label  // Label of the filter
+                    });
+                }
+            }
+        }
+
         // Function to initialize timeline interactions
         function initializeTimelineInteractions() {
             const container = document.getElementById('timelineContainer');
@@ -672,66 +716,6 @@
                 eventSpacing = Math.max(20, Math.min(200, eventSpacing)); // Limit zoom level
                 drawTimeline();
             });
-        }
-
-        // Function to highlight a specific log line
-        function highlightLogLine(index) {
-            const logContent = document.getElementById('logContent');
-            const logLines = logContent.children;
-            // Remove highlight from all lines
-            for (let line of logLines) {
-                line.classList.remove('highlighted');
-            }
-            // Add highlight to the clicked line and scroll to it
-            const clickedLine = logContent.querySelector(`[data-index="${index}"]`);
-            if (clickedLine) {
-                clickedLine.classList.add('highlighted');
-                clickedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        // Function to update the matching list for a specific filter
-        function updateFilterMatchingList(filterIndex) {
-            // Remove existing entries for this filter
-            matchingList = matchingList.filter(entry => entry.filterIndex !== filterIndex);
-            // Iterate through all log lines
-            for (let [lineIndex, line] of logLines.entries()) {
-                // Parse timestamp from the log line
-                const timestamp = parseTimestamp(line);
-                if (!timestamp) continue; // Skip lines without a valid timestamp
-                // If the line matches the filter, add it to the matching list
-                if (evaluateFilter(line, filters[filterIndex])) {
-                    insertIntoMatchingList({
-                        timestamp,
-                        line,
-                        index: lineIndex,
-                        filterIndex
-                    });
-                }
-            }
-        }
-
-        // Function to update both the display and timeline
-        function updateDisplayAndTimeline() {
-            updateLogEvents();
-            displayLogContent();
-        }
-
-        // Function to update log events based on the matching list and active filters
-        function updateLogEvents() {
-            logEvents = [];
-            for (let entry of matchingList) {
-                // Only include events for checked (active) filters
-                if (filters[entry.filterIndex].checked) {
-                    logEvents.push({
-                        timestamp: entry.timestamp,
-                        color: filters[entry.filterIndex].color,
-                        index: entry.index,
-                        filterIndex: entry.filterIndex,
-                        label: filters[entry.filterIndex].label
-                    });
-                }
-            }
         }
 
         // Event listener for changes in the filters container
