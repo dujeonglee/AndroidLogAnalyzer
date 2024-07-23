@@ -282,7 +282,7 @@
                 <input type="text" placeholder="Filter label">
                 <div class="toggle-container">
                     <label class="toggle-switch">
-                        <input type="checkbox" onchange="toggleRegex(this)">
+                        <input type="checkbox">
                         <span class="slider"></span>
                     </label>
                     <span>Regex</span>
@@ -299,17 +299,6 @@
             });
             updateMatchingList(); // Update matchingList after adding a new filter
             displayLogContent();
-        }
-
-        function toggleRegex(checkbox) {
-            if (!isLogFileLoaded) return;
-
-            const filterDiv = checkbox.closest('.filter-container');
-            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            filters[index].isRegex = checkbox.checked;
-            
-            updateFilterMatchingList(index);
-            updateDisplayAndTimeline(); // Pass false to indicate we don't need to redraw the timeline yet
         }
 
         function removeFilter(button) {
@@ -390,7 +379,7 @@
                     <input type="text" placeholder="Filter label" value="${escapeHtml(filter.label)}">
                     <div class="toggle-container">
                         <label class="toggle-switch">
-                            <input type="checkbox" onchange="toggleRegex(this)" ${filter.isRegex ? 'checked' : ''}>
+                            <input type="checkbox" ${filter.isRegex ? 'checked' : ''}>
                             <span class="slider"></span>
                         </label>
                         <span>Regex</span>
@@ -573,7 +562,9 @@
 
             const filterDiv = event.target.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            if (event.target.type === 'checkbox' && event.target.classList.contains('toggle-switch')) {
+            
+            // Check if the changed element is a checkbox, but not the regex toggle
+            if (event.target.type === 'checkbox' && !event.target.closest('.toggle-switch')) {
                 filters[index].checked = event.target.checked;
                 updateDisplayAndTimeline();
             } else if (event.target.type === 'text') {
@@ -587,6 +578,17 @@
                 }
             } else if (event.target.type === 'color') {
                 filters[index].color = event.target.value;
+                updateDisplayAndTimeline();
+            }
+        });
+
+        // Separate event listener for the regex toggle
+        document.getElementById('filters').addEventListener('change', function(event) {
+            if (event.target.type === 'checkbox' && event.target.closest('.toggle-switch')) {
+                const filterDiv = event.target.closest('.filter-container');
+                const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+                filters[index].isRegex = event.target.checked;
+                updateFilterMatchingList(index);
                 updateDisplayAndTimeline();
             }
         });
