@@ -131,48 +131,78 @@
     </div>
     <div id="tooltip"></div>
     <script>
+        // Array to store each line of the loaded log file
         let logLines = [];
+        // Array to store filter conditions for log parsing
         let filters = [];
+        // Array to store parsed log events
         let logEvents = [];
-        let matchingList = []; // New global list to store matching lines
+        // Array to store log lines that match the applied filters
+        let matchingList = [];
+        // String to store the name of the currently loaded log file
         let logFileName = '';
+        // String to store the name of the currently loaded filter file
         let filterFileName = '';
+        // Number of pixels to space events vertically in the visualization
         let eventSpacing = 80;
+        // Boolean flag to indicate whether a log file has been loaded
         let isLogFileLoaded = false;
 
+        /**
+         * Handles the loading of a log file selected by the user.
+         * 
+         * @param {Event} event - The file input change event.
+         */
         function loadLogFile(event) {
+            // Get the selected file from the input element
             const file = event.target.files[0];
             if (!file) {
-                return;
+                return; // Exit if no file was selected
             }
-            logFileName = file.name;
+            // Create a new FileReader instance
             const reader = new FileReader();
+            // Define what happens when the file is loaded
             reader.onload = function(e) {
+                // Store the name of the loaded file
+                logFileName = file.name;
+                // Split the file content into an array of lines
                 logLines = e.target.result.split('\n');
+                // Update the UI with information about the loaded file
                 updateLogFileInfo();
+                // Activate filters if this is the first file being loaded
                 if (!isLogFileLoaded) {
                     activateFilters();
                 }
+                // Mark that a log file has been loaded
                 isLogFileLoaded = true;
-                updateMatchingList(); // Update matchingList after loading the file
+                // Update the list of matching log entries
+                updateMatchingList();
+                // Display the log content in the UI
                 displayLogContent();
             };
+            // Start reading the file as text
             reader.readAsText(file);
         }
 
         function updateMatchingList() {
+            // Clear the existing matching list
             matchingList = [];
+            // Iterate through each line in the log
             for (let [index, line] of logLines.entries()) {
+                // Parse the timestamp from the current line
                 const timestamp = parseTimestamp(line);
+                // Skip this line if no valid timestamp is found
                 if (!timestamp) continue;
-
+                // Check the line against each filter
                 for (let [filterIndex, filter] of filters.entries()) {
+                    // If the line matches the current filter
                     if (evaluateFilter(line, filter)) {
+                        // Add the matching line info to the matchingList
                         insertIntoMatchingList({
-                            timestamp,
-                            line,
-                            index,
-                            filterIndex
+                            timestamp,  // Parsed timestamp
+                            line,       // The full log line
+                            index,      // Index of the line in logLines
+                            filterIndex // Index of the matching filter
                         });
                     }
                 }
@@ -180,101 +210,169 @@
         }
 
         function insertIntoMatchingList(entry) {
+            // Find the correct insertion point using binary search
             const index = binarySearchWithIndex(matchingList, entry);
+            // Insert the new entry at the found index, 
+            // shifting existing elements if necessary
             matchingList.splice(index, 0, entry);
         }
 
         function binarySearchWithIndex(arr, entry) {
+            // Initialize search boundaries
             let low = 0;
             let high = arr.length;
-
             while (low < high) {
+                // Calculate midpoint (using unsigned right shift for integer division)
                 let mid = (low + high) >>> 1;
+                // Compare timestamps
                 if (arr[mid].timestamp < entry.timestamp) {
+                    // If midpoint timestamp is earlier, search upper half
                     low = mid + 1;
                 } else if (arr[mid].timestamp > entry.timestamp) {
+                    // If midpoint timestamp is later, search lower half
                     high = mid;
                 } else {
-                    // If timestamps are equal, compare the original indices
+                    // If timestamps are equal, compare original indices
                     if (arr[mid].index < entry.index) {
+                        // If midpoint index is lower, search upper half
                         low = mid + 1;
                     } else {
+                        // If midpoint index is higher or equal, search lower half
                         high = mid;
                     }
                 }
             }
+            // Return the insertion point
             return low;
         }
 
         function displayLogContent() {
+            // Exit if no log file is loaded
             if (!isLogFileLoaded) return;
-
+            // Get the log content container
             const logContent = document.getElementById('logContent');
+            // Clear existing content
             logContent.innerHTML = '';
-
+            // Iterate through each entry in the matching list
             for (let entry of matchingList) {
+                // Check if the filter for this entry is currently active
                 if (filters[entry.filterIndex].checked) {
+                    // Create a new div element for the log line
                     const lineElement = document.createElement('div');
+                    // Set the text content to the log line
                     lineElement.textContent = entry.line;
+                    // Set the color based on the filter
                     lineElement.style.color = filters[entry.filterIndex].color;
+                    // Add a CSS class for styling
                     lineElement.classList.add('log-line');
+                    // Store the original index as a data attribute
                     lineElement.dataset.index = entry.index;
+                    // Store the filter index as a data attribute
                     lineElement.dataset.filterIndex = entry.filterIndex;
+                    // Append the line element to the log content container
                     logContent.appendChild(lineElement);
                 }
             }
-
+            // Update the visibility of the timeline
             toggleTimelineVisibility();
-            drawTimeline(); // Call drawTimeline here, after all updates are done
+            // Redraw the timeline
+            drawTimeline();
         }
 
+        function updateLogEvents() {
+            // Clear the existing log events array
+            logEvents = [];
+            // Iterate through each entry in the matching list
+            for (let entry of matchingList) {
+                // Check if the filter for this entry is currently active
+                if (filters[entry.filterIndex].checked) {
+                    // Add a new event object to the logEvents array
+                    logEvents.push({
+                        timestamp: entry.timestamp,  // Time of the log entry
+                        color: filters[entry.filterIndex].color,  // Color associated with the filter
+                        index: entry.index,  // Original index in the log file
+                        filterIndex: entry.filterIndex,  // Index of the matching filter
+                        label: filters[entry.filterIndex].label  // Label of the filter
+                    });
+                }
+            }
+        }
+
+        // Function to activate the filter interface
         function activateFilters() {
+            // Get the filter container element
             const filterContainer = document.getElementById('filterContainer');
+            // Add the 'active' class to show the filter interface
             filterContainer.classList.add('active');
-            addFilter(); // Add an initial filter
+            // Add an initial filter to the interface
+            addFilter();
         }
 
+        // Function to update the displayed log file information
         function updateLogFileInfo() {
+            // Get the log file info element
             const logFileInfo = document.getElementById('logFileInfo');
+            // Update the text content with the name of the loaded log file
             logFileInfo.textContent = `Loaded log file: ${logFileName}`;
         }
 
+        // Function to update the displayed filter file information
         function updateFilterFileInfo() {
+            // Get the filter file info element
             const filterFileInfo = document.getElementById('filterFileInfo');
+            // Update the text content with the name of the loaded filter file
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
         }
 
+        // Function to toggle the visibility of the timeline container
         function toggleTimelineVisibility() {
+            // Get the timeline container element
             const timelineContainer = document.getElementById('timelineContainer');
+            // Check if there are log lines and log events
             if (logLines.length > 0 && logEvents.length > 0) {
+                // If both are present, show the timeline container
                 timelineContainer.style.display = 'block';
             } else {
+                // If either is missing, hide the timeline container
                 timelineContainer.style.display = 'none';
             }
         }
 
+        // Function to evaluate if a line matches a given filter
         function evaluateFilter(line, filter) {
+            // If the filter expression is empty, return false (no match)
             if (filter.expression === "") return false;
+            // Check if the filter is a regular expression
             if (filter.isRegex) {
                 try {
+                    // Create a RegExp object from the filter expression
                     const regex = new RegExp(filter.expression);
+                    // Test if the line matches the regex
                     return regex.test(line);
                 } catch (e) {
+                    // If the regex is invalid, log an error and return false
                     console.error("Invalid regex:", e);
                     return false;
                 }
             } else {
+                // If not a regex, treat the filter as keywords
+                // Split the filter expression into individual keywords
                 const keywords = filter.expression.split(' ');
+                // Check if all keywords are present in the line
                 return keywords.every(keyword => line.includes(keyword));
             }
         }
 
+        // Function to add a new filter to the interface
         function addFilter() {
+            // Check if a log file is loaded, if not, exit the function
             if (!isLogFileLoaded) return;
-
+            // Get the container for all filters
             const filterContainer = document.getElementById('filters');
+            // Create a new div element for the filter
             const filterDiv = document.createElement('div');
             filterDiv.classList.add('filter-container');
+            // Set the HTML content for the new filter
             filterDiv.innerHTML = `
                 <input type="checkbox" checked>
                 <input type="text" placeholder="Filter expression">
@@ -289,7 +387,9 @@
                 </div>
                 <button onclick="removeFilter(this)">Remove</button>
             `;
+            // Add the new filter div to the filter container
             filterContainer.appendChild(filterDiv);
+            // Add a new filter object to the filters array
             filters.push({
                 checked: true,
                 expression: '',
@@ -297,29 +397,41 @@
                 label: '',
                 isRegex: false
             });
-            updateMatchingList(); // Update matchingList after adding a new filter
+            // Update the matching list and display content after adding the filter
+            updateMatchingList();
             displayLogContent();
         }
 
+        // Function to remove a filter from the interface
         function removeFilter(button) {
+            // Check if a log file is loaded, if not, exit the function
             if (!isLogFileLoaded) return;
-
+            // Find the parent filter container of the clicked remove button
             const filterDiv = button.closest('.filter-container');
+            // Get the index of this filter in the parent container
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+            // Remove the filter object from the filters array
             filters.splice(index, 1);
+            // Remove the filter div from the DOM
             filterDiv.remove();
-            updateMatchingList(); // Update matchingList after removing a filter
+            // Update the matching list and display content after removing the filter
+            updateMatchingList();
             displayLogContent();
         }
 
+        // Function to export filters to a JSON file
         async function exportFilters() {
             try {
+                // Prepare filters for export, escaping regex expressions
                 const filtersToExport = filters.map(filter => ({
                     ...filter,
                     expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression
                 }));
+                // Convert filters to JSON string
                 const data = JSON.stringify(filtersToExport, null, 2);
+                // Create a Blob with the JSON data
                 const blob = new Blob([data], { type: 'application/json' });
+                // Set options for the file save dialog
                 const options = {
                     types: [{
                         description: 'JSON File',
@@ -327,7 +439,9 @@
                     }],
                     suggestedName: `filter.json`
                 };
+                // Show the save file picker
                 const fileHandle = await window.showSaveFilePicker(options);
+                // Create a writable stream and write the blob to it
                 const writable = await fileHandle.createWritable();
                 await writable.write(blob);
                 await writable.close();
@@ -338,15 +452,18 @@
             }
         }
 
+        // Helper function to escape backslashes in regex strings
         function escapeRegex(regex) {
             return regex.replace(/\\/g, '\\\\');
         }
 
+        // Function to import filters from a JSON file
         function importFilters(event) {
             const file = event.target.files[0];
             filterFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
+                // Parse the JSON data
                 filters = JSON.parse(e.target.result);
                 // Unescape regex strings
                 filters.forEach(filter => {
@@ -354,24 +471,33 @@
                         filter.expression = unescapeRegex(filter.expression);
                     }
                 });
+                // Update the UI and data
                 renderFilters();
                 updateFilterFileInfo();
-                updateMatchingList(); // Update matchingList after toggling regex
+                updateMatchingList();
+                updateLogEvents();
                 displayLogContent();
             };
+            // Read the file as text
             reader.readAsText(file);
         }
 
+        // Helper function to unescape backslashes in regex strings
         function unescapeRegex(regex) {
             return regex.replace(/\\(.)/g, '$1');
         }
 
+        // Function to render all filters in the UI
         function renderFilters() {
+            // Get the container for all filters
             const filterContainer = document.getElementById('filters');
+            // Clear existing filters
             filterContainer.innerHTML = '';
+            // Iterate through each filter and create its UI elements
             for (let filter of filters) {
                 const filterDiv = document.createElement('div');
                 filterDiv.classList.add('filter-container');
+                // Set the HTML content for each filter, populating with filter data
                 filterDiv.innerHTML = `
                     <input type="checkbox" ${filter.checked ? 'checked' : ''}>
                     <input type="text" placeholder="Filter expression" value="${escapeHtml(filter.expression)}">
@@ -386,20 +512,24 @@
                     </div>
                     <button onclick="removeFilter(this)">Remove</button>
                 `;
+                // Add the filter div to the container
                 filterContainer.appendChild(filterDiv);
             }
         }
 
+        // Helper function to escape HTML special characters
         function escapeHtml(unsafe) {
             return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
+        // Function to parse timestamp from a log line
         function parseTimestamp(line) {
+            // Regular expression to match timestamp format
             const match = line.match(/^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/);
             if (match) {
                 const [, timestamp] = match;
@@ -407,60 +537,65 @@
                 const [month, day] = date.split('-');
                 const [hour, minute, secondWithMs] = time.split(':');
                 const [second, ms] = secondWithMs.split('.');
+                // Create and return a Date object from the parsed components
                 return new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms);
             }
+            // Return null if no timestamp is found
             return null;
         }
 
+        // Global variables for timeline interaction
         let timelineOffset = 0;
         let isDragging = false;
         let lastMouseX;
 
+        // Function to draw the timeline on the canvas
         function drawTimeline() {
+            // Get the container and canvas elements
             let container = document.getElementById('timelineContainer');
             let canvas = document.getElementById('timelineCanvas');
             let ctx = canvas.getContext('2d');
-
+            // If there are no log events, exit the function
             if (logEvents.length === 0) return;
-
+            // Set canvas dimensions
             canvas.width = Math.max(container.clientWidth, logEvents.length * eventSpacing);
             canvas.height = 300;
-
+            // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+            // Draw the timeline base line
             ctx.beginPath();
             ctx.moveTo(0, canvas.height / 2);
             ctx.lineTo(canvas.width, canvas.height / 2);
             ctx.stroke();
-
+            // Set font for text
             ctx.font = '10px Arial';
+            // Iterate through log events and draw them on the timeline
             for (let i = 0; i < logEvents.length; i++) {
                 const event = logEvents[i];
                 const x = i * eventSpacing + (eventSpacing / 2);
-
+                // Draw event point
                 ctx.fillStyle = event.color;
                 ctx.beginPath();
                 ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
                 ctx.fill();
-
+                // Draw timestamp
                 ctx.fillStyle = event.color;
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 + 10);
                 ctx.rotate(Math.PI / 4);
                 ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
                 ctx.restore();
-
+                // Draw event label
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 - 10);
                 ctx.rotate(-Math.PI / 4);
                 ctx.fillText(event.label, 0, 0);
                 ctx.restore();
-
+                // Draw time elapsed since previous event
                 if (i > 0) {
                     const prevEvent = logEvents[i - 1];
                     const timeElapsed = event.timestamp - prevEvent.timestamp;
                     const timeElapsedStr = formatTimeElapsed(timeElapsed);
-                    
                     ctx.save();
                     ctx.translate(x, canvas.height / 2 + 30);
                     ctx.rotate(Math.PI / 4);
@@ -470,22 +605,24 @@
             }
         }
 
+        // Helper function to format time elapsed in seconds and milliseconds
         function formatTimeElapsed(timeElapsed) {
             const seconds = Math.floor(timeElapsed / 1000);
             const milliseconds = timeElapsed % 1000;
             return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         }
 
+        // Function to initialize timeline interactions
         function initializeTimelineInteractions() {
             const container = document.getElementById('timelineContainer');
             const canvas = document.getElementById('timelineCanvas');
             const tooltip = document.getElementById('tooltip');
-
+            // Event listener for starting drag
             canvas.addEventListener('mousedown', function(event) {
                 isDragging = true;
                 lastMouseX = event.clientX;
             });
-
+            // Event listener for dragging
             document.addEventListener('mousemove', function(event) {
                 if (isDragging) {
                     const deltaX = event.clientX - lastMouseX;
@@ -493,26 +630,24 @@
                     lastMouseX = event.clientX;
                 }
             });
-
+            // Event listener for ending drag
             document.addEventListener('mouseup', function() {
                 isDragging = false;
             });
-
+            // Event listener for clicking on timeline events
             canvas.addEventListener('click', function(event) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const clickedIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
-
                 if (clickedIndex >= 0 && clickedIndex < logEvents.length) {
                     highlightLogLine(logEvents[clickedIndex].index);
                 }
             });
-
+            // Event listener for showing tooltip on hover
             canvas.addEventListener('mousemove', function(event) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const hoverIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
-
                 if (hoverIndex >= 0 && hoverIndex < logEvents.length) {
                     const logLine = logLines[logEvents[hoverIndex].index];
                     tooltip.style.display = 'block';
@@ -523,33 +658,31 @@
                     tooltip.style.display = 'none';
                 }
             });
-
+            // Event listener for hiding tooltip when mouse leaves canvas
             canvas.addEventListener('mouseout', function() {
                 tooltip.style.display = 'none';
             });
-
-            // Add wheel event listener for zooming
+            // Event listener for zooming with mouse wheel
             canvas.addEventListener('wheel', function(event) {
                 event.preventDefault();
                 const zoomIntensity = 0.1;
                 const wheel = event.deltaY < 0 ? 1 : -1;
                 const zoom = Math.exp(wheel * zoomIntensity);
-                
                 eventSpacing *= zoom;
                 eventSpacing = Math.max(20, Math.min(200, eventSpacing)); // Limit zoom level
-
                 drawTimeline();
             });
         }
 
+        // Function to highlight a specific log line
         function highlightLogLine(index) {
             const logContent = document.getElementById('logContent');
             const logLines = logContent.children;
-            
+            // Remove highlight from all lines
             for (let line of logLines) {
                 line.classList.remove('highlighted');
             }
-
+            // Add highlight to the clicked line and scroll to it
             const clickedLine = logContent.querySelector(`[data-index="${index}"]`);
             if (clickedLine) {
                 clickedLine.classList.add('highlighted');
@@ -557,51 +690,16 @@
             }
         }
 
-        document.getElementById('filters').addEventListener('change', function(event) {
-            if (!isLogFileLoaded) return;
-
-            const filterDiv = event.target.closest('.filter-container');
-            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            
-            // Check if the changed element is a checkbox, but not the regex toggle
-            if (event.target.type === 'checkbox' && !event.target.closest('.toggle-switch')) {
-                filters[index].checked = event.target.checked;
-                updateDisplayAndTimeline();
-            } else if (event.target.type === 'text') {
-                if (event.target.placeholder === 'Filter expression') {
-                    filters[index].expression = event.target.value;
-                    updateFilterMatchingList(index);
-                    updateDisplayAndTimeline();
-                } else if (event.target.placeholder === 'Filter label') {
-                    filters[index].label = event.target.value;
-                    updateDisplayAndTimeline();
-                }
-            } else if (event.target.type === 'color') {
-                filters[index].color = event.target.value;
-                updateDisplayAndTimeline();
-            }
-        });
-
-        // Separate event listener for the regex toggle
-        document.getElementById('filters').addEventListener('change', function(event) {
-            if (event.target.type === 'checkbox' && event.target.closest('.toggle-switch')) {
-                const filterDiv = event.target.closest('.filter-container');
-                const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-                filters[index].isRegex = event.target.checked;
-                updateFilterMatchingList(index);
-                updateDisplayAndTimeline();
-            }
-        });
-
+        // Function to update the matching list for a specific filter
         function updateFilterMatchingList(filterIndex) {
-            // Remove entries associated with this filter
+            // Remove existing entries for this filter
             matchingList = matchingList.filter(entry => entry.filterIndex !== filterIndex);
-
-            // Add new matching entries
+            // Iterate through all log lines
             for (let [lineIndex, line] of logLines.entries()) {
+                // Parse timestamp from the log line
                 const timestamp = parseTimestamp(line);
-                if (!timestamp) continue;
-
+                if (!timestamp) continue; // Skip lines without a valid timestamp
+                // If the line matches the filter, add it to the matching list
                 if (evaluateFilter(line, filters[filterIndex])) {
                     insertIntoMatchingList({
                         timestamp,
@@ -613,14 +711,17 @@
             }
         }
 
+        // Function to update both the display and timeline
         function updateDisplayAndTimeline() {
             updateLogEvents();
             displayLogContent();
         }
 
+        // Function to update log events based on the matching list and active filters
         function updateLogEvents() {
             logEvents = [];
             for (let entry of matchingList) {
+                // Only include events for checked (active) filters
                 if (filters[entry.filterIndex].checked) {
                     logEvents.push({
                         timestamp: entry.timestamp,
@@ -633,10 +734,54 @@
             }
         }
 
+        // Event listener for changes in the filters container
+        document.getElementById('filters').addEventListener('change', function(event) {
+            // Exit if no log file is loaded
+            if (!isLogFileLoaded) return;
+            // Find the filter container and its index
+            const filterDiv = event.target.closest('.filter-container');
+            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+            // Handle checkbox changes
+            if (event.target.type === 'checkbox') {
+                // Check if it's not the regex toggle
+                if (!event.target.closest('.toggle-switch')) {
+                    // Update filter's checked status
+                    filters[index].checked = event.target.checked;
+                    updateDisplayAndTimeline();
+                } else {
+                    // Handle regex toggle
+                    filters[index].isRegex = event.target.checked;
+                    updateFilterMatchingList(index);
+                    updateDisplayAndTimeline();
+                }
+            } 
+            // Handle text input changes
+            else if (event.target.type === 'text') {
+                if (event.target.placeholder === 'Filter expression') {
+                    // Update filter expression
+                    filters[index].expression = event.target.value;
+                    updateFilterMatchingList(index);
+                    updateDisplayAndTimeline();
+                } else if (event.target.placeholder === 'Filter label') {
+                    // Update filter label
+                    filters[index].label = event.target.value;
+                    updateDisplayAndTimeline();
+                }
+            } 
+            // Handle color input changes
+            else if (event.target.type === 'color') {
+                // Update filter color
+                filters[index].color = event.target.value;
+                updateDisplayAndTimeline();
+            }
+        });
+        // Event listener for file input changes
         document.getElementById('fileInput').addEventListener('change', loadLogFile);
+        // Event listener to reset file input value when clicked
         document.getElementById('fileInput').addEventListener('click', function(event) {
             event.target.value = null;
         });
+        // Initialize timeline interactions
         initializeTimelineInteractions();
     </script>
 </body>
