@@ -104,34 +104,6 @@
             z-index: 1000;
             display: none;
         }
-        #loadingOverlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-        }
-
-        #loadingSpinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
     </style>
 </head>
 <body>
@@ -158,9 +130,6 @@
     <div id="logContent">
     </div>
     <div id="tooltip"></div>
-    <div id="loadingOverlay">
-        <div id="loadingSpinner"></div>
-    </div>
     <script>
         // Array to store each line of the loaded log file
         let logLines = [];
@@ -272,8 +241,6 @@
                             index,      // Index of the line in logLines
                             filterIndex // Index of the matching filter
                         });
-                        // Do not match line with multiple filters
-                        break;
                     }
                 }
             }
@@ -563,88 +530,60 @@
         let isDragging = false;
         let lastMouseX;
 
-        // Function to show the loading overlay
-        function showLoading() {
-            document.getElementById('loadingOverlay').style.display = 'block';
-        }
-
-        // Function to hide the loading overlay
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
         // Function to draw the timeline on the canvas
         function drawTimeline() {
-            showLoading(); // Show loading overlay before starting to draw
-
-            // Wrap the drawing logic in a setTimeout to allow the loading overlay to appear
-            setTimeout(() => {
-                // Get the container and canvas elements
-                let container = document.getElementById('timelineContainer');
-                let canvas = document.getElementById('timelineCanvas');
-                let ctx = canvas.getContext('2d');
-                // If there are no log events, exit the function
-                if (logEvents.length === 0) {
-                    hideLoading(); // Hide loading if there are no events
-                    return;
-                }                // Set canvas dimensions
-                canvas.width = Math.max(container.clientWidth, logEvents.length * eventSpacing);
-                canvas.height = 300;
-                // Clear the canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Draw the timeline base line
+            // Get the container and canvas elements
+            let container = document.getElementById('timelineContainer');
+            let canvas = document.getElementById('timelineCanvas');
+            let ctx = canvas.getContext('2d');
+            // If there are no log events, exit the function
+            if (logEvents.length === 0) return;
+            // Set canvas dimensions
+            canvas.width = Math.max(container.clientWidth, logEvents.length * eventSpacing);
+            canvas.height = 300;
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw the timeline base line
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            // Set font for text
+            ctx.font = '10px Arial';
+            // Iterate through log events and draw them on the timeline
+            for (let i = 0; i < logEvents.length; i++) {
+                const event = logEvents[i];
+                const x = i * eventSpacing + (eventSpacing / 2);
+                // Draw event point
+                ctx.fillStyle = event.color;
                 ctx.beginPath();
-                ctx.moveTo(0, canvas.height / 2);
-                ctx.lineTo(canvas.width, canvas.height / 2);
-                ctx.stroke();
-                // Set font for text
-                ctx.font = '10px Arial';
-                // Iterate through log events and draw them on the timeline
-                for (let i = 0; i < logEvents.length; i++) {
-                    const event = logEvents[i];
-                    const x = i * eventSpacing + (eventSpacing / 2);
-                    // Draw event point
-                    ctx.fillStyle = event.color;
-                    ctx.beginPath();
-                    ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
-                    ctx.fill();
-                    // Draw timestamp
-                    ctx.fillStyle = event.color;
+                ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
+                ctx.fill();
+                // Draw timestamp
+                ctx.fillStyle = event.color;
+                ctx.save();
+                ctx.translate(x, canvas.height / 2 + 10);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                ctx.restore();
+                // Draw event label
+                ctx.save();
+                ctx.translate(x, canvas.height / 2 - 10);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(event.label, 0, 0);
+                ctx.restore();
+                // Draw time elapsed since previous event
+                if (i > 0) {
+                    const prevEvent = logEvents[i - 1];
+                    const timeElapsed = event.timestamp - prevEvent.timestamp;
+                    const timeElapsedStr = formatTimeElapsed(timeElapsed);
                     ctx.save();
-                    ctx.translate(x, canvas.height / 2 + 10);
+                    ctx.translate(x, canvas.height / 2 + 30);
                     ctx.rotate(Math.PI / 4);
-                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                    ctx.fillText(`(${timeElapsedStr})`, 0, 0);
                     ctx.restore();
-                    // Draw event label
-                    ctx.save();
-                    ctx.translate(x, canvas.height / 2 - 10);
-                    ctx.rotate(-Math.PI / 4);
-                    ctx.fillText(event.label, 0, 0);
-                    ctx.restore();
-                    // Draw time elapsed since previous event
-                    if (i > 0) {
-                        const prevEvent = logEvents[i - 1];
-                        const timeElapsed = event.timestamp - prevEvent.timestamp;
-                        const timeElapsedStr = formatTimeElapsed(timeElapsed);
-                        ctx.save();
-                        ctx.translate(x, canvas.height / 2 + 30);
-                        ctx.rotate(Math.PI / 4);
-                        ctx.fillText(`(${timeElapsedStr})`, 0, 0);
-                        ctx.restore();
-                    }
                 }
-                hideLoading(); // Hide loading overlay after drawing is complete
-            }, 0);
-        }
-
-        // Modify updateDisplayAndTimeline function
-        function updateDisplayAndTimeline() {
-            showLoading(); // Show loading before updating
-            setTimeout(() => {
-                updateLogEvents();
-                displayLogContent();
-                hideLoading(); // Hide loading after update is complete
-            }, 0);
+            }
         }
 
         // Helper function to format time elapsed in seconds and milliseconds
@@ -687,8 +626,6 @@
                         index: lineIndex,
                         filterIndex
                     });
-                    // Do not match line with multiple filters
-                    break;
                 }
             }
         }
