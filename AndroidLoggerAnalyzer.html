@@ -269,9 +269,9 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            logData[currentLogType].logFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
-                logData[currentLogType].logFileName = file.name;
                 logData[currentLogType].logLines = e.target.result.split('\n');
                 updateLogFileInfo();
                 if (!logData[currentLogType].isLogFileLoaded) {
@@ -504,6 +504,7 @@
         function importFilters(event) {
             const file = event.target.files[0];
             if (!file) return;
+
             filterFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
