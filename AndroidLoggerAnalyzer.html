@@ -197,7 +197,7 @@
             <h2>Filters</h2>
             <button onclick="addFilter()">Add Filter</button>
             <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="frameworkImportInput" accept=".json" onchange="importFilters(event, 'Framework')">
+            <input type="file" id="frameworkImportInput" accept=".json" onchange="importFilters(event)">
             <div id="frameworkFilterFileInfo" class="file-info"></div>
             <br><br>
             <div id="frameworkFilters"></div>
@@ -219,7 +219,7 @@
             <h2>Filters</h2>
             <button onclick="addFilter()">Add Filter</button>
             <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="kernelImportInput" accept=".json" onchange="importFilters(event, 'Kernel')">
+            <input type="file" id="kernelImportInput" accept=".json" onchange="importFilters(event)">
             <div id="kernelFilterFileInfo" class="file-info"></div>
             <br><br>
             <div id="kernelFilters"></div>
@@ -501,9 +501,8 @@
         }
 
         // Function to import filters from a JSON file
-        function importFilters(event, logType) {
+        function importFilters(event) {
             const file = event.target.files[0];
-            currentLogType = logType;
             filterFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
