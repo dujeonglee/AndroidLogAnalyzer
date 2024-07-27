@@ -5,27 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log File Viewer</title>
     <style>
+        /* Set default styles for the body */
         body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 20px;
         }
+
+        /* Style the timeline canvas */
         #timelineCanvas {
             border: 1px solid #ddd;
             margin-top: 20px;
         }
+
+        /* Style for file information */
         .file-info {
             margin-top: 10px;
             font-style: italic;
             color: #666;
         }
+
+        /* Style for highlighted elements */
         .highlighted {
             background-color: yellow;
         }
+
+        /* Style for individual log lines */
         .log-line {
             margin-bottom: 2px;
         }
+
+        /* Container for the timeline */
         #timelineContainer {
             position: relative;
             width: 800px;
@@ -34,27 +45,39 @@
             border: 1px solid #ddd;
             margin-top: 20px;
         }
+
+        /* Position the timeline canvas absolutely within its container */
         #timelineCanvas {
             position: absolute;
         }
+
+        /* Hide the timeline container by default */
         #timelineContainer {
-            display: none; /* Hide timeline container by default */
+            display: none;
         }
+
+        /* Container for toggle switches */
         .toggle-container {
             display: inline-block;
             vertical-align: middle;
         }
+
+        /* Style for toggle switches */
         .toggle-switch {
             position: relative;
             display: inline-block;
             width: 60px;
             height: 34px;
         }
+
+        /* Hide default checkbox */
         .toggle-switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
+        /* Style for the slider part of the toggle switch */
         .slider {
             position: absolute;
             cursor: pointer;
@@ -66,6 +89,8 @@
             transition: .4s;
             border-radius: 34px;
         }
+
+        /* Style for the slider button */
         .slider:before {
             position: absolute;
             content: "";
@@ -77,21 +102,32 @@
             transition: .4s;
             border-radius: 50%;
         }
+
+        /* Style for checked state of toggle switch */
         input:checked + .slider {
             background-color: #2196F3;
         }
+
         input:checked + .slider:before {
             transform: translateX(26px);
         }
+
+        /* Container for filter options */
         .filter-container {
             margin-bottom: 10px;
         }
+
+        /* Hide filters by default */
         #filterContainer {
-            display: none; /* Hide filters by default */
+            display: none;
         }
+
+        /* Show filters when active */
         #filterContainer.active {
-            display: block; /* Show filters when active */
+            display: block;
         }
+
+        /* Style for tooltip */
         #tooltip {
             position: absolute;
             background-color: rgba(0, 0, 0, 0.8);
@@ -104,9 +140,36 @@
             z-index: 1000;
             display: none;
         }
+
+        /* Style for filter labels */
+        .filter-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
+    <!--
+    This HTML structure defines the layout for a CNNT Log Analyzer tool.
+    It includes the following elements:
+
+    1. A title (h1) for the application
+    2. A file input for uploading log files (.txt or .log)
+    3. A div to display information about the uploaded log file
+    4. A filter container section:
+    - Add Filter button
+    - Export Filters button
+    - Import Filters file input
+    - A div to display information about the imported filter file
+    - A div to contain the filters
+    5. A timeline section with a canvas element for visualization
+    6. A log content section to display the analyzed log data
+    7. A tooltip div for displaying additional information on hover
+
+    The structure allows for user interaction through file uploads and button clicks,
+    with corresponding JavaScript functions (not shown here) to handle these events
+    and process the log data.
+    -->
     <h1>CNNT Log Analyzer</h1>
     <input type="file" id="fileInput" accept=".txt, .log">
     <div id="logFileInfo" class="file-info"></div>
@@ -148,38 +211,43 @@
         // Boolean flag to indicate whether a log file has been loaded
         let isLogFileLoaded = false;
 
-        /**
-         * Handles the loading of a log file selected by the user.
-         * 
-         * @param {Event} event - The file input change event.
-         */
+        // This function is triggered when a file is selected in the input
         function loadLogFile(event) {
             // Get the selected file from the input element
             const file = event.target.files[0];
-            if (!file) {
-                return; // Exit if no file was selected
-            }
-            // Create a new FileReader instance
+            
+            // If no file was selected, exit the function
+            if (!file) return;
+            
+            // Create a new FileReader object to read the file contents
             const reader = new FileReader();
+            
             // Define what happens when the file is loaded
             reader.onload = function(e) {
                 // Store the name of the loaded file
                 logFileName = file.name;
+                
                 // Split the file content into an array of lines
                 logLines = e.target.result.split('\n');
+                
                 // Update the UI with information about the loaded file
                 updateLogFileInfo();
-                // Activate filters if this is the first file being loaded
+                
+                // If this is the first file loaded, activate the filters
                 if (!isLogFileLoaded) {
                     activateFilters();
                 }
+                
                 // Mark that a log file has been loaded
                 isLogFileLoaded = true;
-                // Update the list of matching log entries
+                
+                // Update the list of matching lines based on current filters
                 updateMatchingList();
+                
                 // Display the log content in the UI
                 displayLogContent();
             };
+            
             // Start reading the file as text
             reader.readAsText(file);
         }
@@ -221,60 +289,81 @@
             matchingList.splice(index, 0, entry);
         }
 
+        // Function to update the list of log lines matching the filters
         function updateMatchingList() {
             // Clear the existing matching list
             matchingList = [];
-            // Iterate through each line in the log
-            for (let [index, line] of logLines.entries()) {
+
+            // Iterate through each line in the log file
+            for (let [lineIndex, line] of logLines.entries()) {
                 // Parse the timestamp from the current line
                 const timestamp = parseTimestamp(line);
+
                 // Skip this line if no valid timestamp is found
                 if (!timestamp) continue;
+
                 // Check the line against each filter
                 for (let [filterIndex, filter] of filters.entries()) {
                     // If the line matches the current filter
                     if (evaluateFilter(line, filter)) {
                         // Add the matching line info to the matchingList
                         insertIntoMatchingList({
-                            timestamp,  // Parsed timestamp
-                            line,       // The full log line
-                            index,      // Index of the line in logLines
-                            filterIndex // Index of the matching filter
+                            timestamp,   // Parsed timestamp
+                            line,        // Full log line
+                            index: lineIndex,  // Index of the line in the original log
+                            filterIndex  // Index of the matching filter
                         });
                     }
                 }
             }
+
+            // After processing all lines, update the log events display
+            updateLogEvents();
         }
 
         function displayLogContent() {
             // Exit if no log file is loaded
             if (!isLogFileLoaded) return;
-            // Get the log content container
-            const logContent = document.getElementById('logContent');
+
+            // Get the container for log content
+            const logContentContainer = document.getElementById('logContent');
+            
             // Clear existing content
-            logContent.innerHTML = '';
-            // Iterate through each entry in the matching list
+            logContentContainer.innerHTML = '';
+
+            // Iterate through the matching log entries
             for (let entry of matchingList) {
-                // Check if the filter for this entry is currently active
+                // Check if the filter for this entry is active
                 if (filters[entry.filterIndex].checked) {
-                    // Create a new div element for the log line
+                    // Create a new div element for the log entry
                     const lineElement = document.createElement('div');
-                    // Set the text content to the log line
-                    lineElement.textContent = entry.line;
-                    // Set the color based on the filter
-                    lineElement.style.color = filters[entry.filterIndex].color;
-                    // Add a CSS class for styling
+
+                    // Extract timestamp (first 19 characters) and log text (rest of the line)
+                    const timestamp = entry.line.substring(0, 19);
+                    const logText = entry.line.substring(19);
+
+                    // Set the inner HTML of the line element
+                    // Include timestamp, colored filter label, and log text
+                    lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${filters[entry.filterIndex].color}">[${filters[entry.filterIndex].label}]</span> ${logText}`;
+
+                    // Set text color to black
+                    lineElement.style.color = 'black';
+
+                    // Add 'log-line' class to the element
                     lineElement.classList.add('log-line');
-                    // Store the original index as a data attribute
+
+                    // Set data attributes for index and filter index
                     lineElement.dataset.index = entry.index;
-                    // Store the filter index as a data attribute
                     lineElement.dataset.filterIndex = entry.filterIndex;
+
                     // Append the line element to the log content container
-                    logContent.appendChild(lineElement);
+                    logContentContainer.appendChild(lineElement);
                 }
             }
+
             // Update the visibility of the timeline
             toggleTimelineVisibility();
+
             // Redraw the timeline
             drawTimeline();
         }
@@ -406,29 +495,42 @@
                 // Prepare filters for export, escaping regex expressions
                 const filtersToExport = filters.map(filter => ({
                     ...filter,
+                    // Escape regex expressions to prevent issues when importing
                     expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression
                 }));
-                // Convert filters to JSON string
+
+                // Convert filters to JSON string with 2-space indentation
                 const data = JSON.stringify(filtersToExport, null, 2);
+
                 // Create a Blob with the JSON data
                 const blob = new Blob([data], { type: 'application/json' });
+
                 // Set options for the file save dialog
                 const options = {
                     types: [{
                         description: 'JSON File',
                         accept: {'application/json': ['.json']},
                     }],
-                    suggestedName: `filter.json`
+                    suggestedName: `filter.json` // Default filename
                 };
-                // Show the save file picker
+
+                // Show the save file picker and get the file handle
                 const fileHandle = await window.showSaveFilePicker(options);
-                // Create a writable stream and write the blob to it
+
+                // Create a writable stream from the file handle
                 const writable = await fileHandle.createWritable();
+
+                // Write the blob data to the file
                 await writable.write(blob);
+
+                // Close the writable stream to save the file
                 await writable.close();
+
                 console.log("File saved successfully");
             } catch (err) {
+                // Log any errors that occur during the process
                 console.error("Error exporting file:", err);
+                // Alert the user about the error
                 alert("An error occurred while saving the file. Please try again.");
             }
         }
@@ -638,22 +740,14 @@
 
         // Function to update log events based on the matching list and active filters
         function updateLogEvents() {
-            // Clear the existing log events array
-            logEvents = [];
-            // Iterate through each entry in the matching list
-            for (let entry of matchingList) {
-                // Check if the filter for this entry is currently active
-                if (filters[entry.filterIndex].checked) {
-                    // Add a new event object to the logEvents array
-                    logEvents.push({
-                        timestamp: entry.timestamp,  // Time of the log entry
-                        color: filters[entry.filterIndex].color,  // Color associated with the filter
-                        index: entry.index,  // Original index in the log file
-                        filterIndex: entry.filterIndex,  // Index of the matching filter
-                        label: filters[entry.filterIndex].label  // Label of the filter
-                    });
-                }
-            }
+            logEvents = matchingList.filter(entry => filters[entry.filterIndex].checked)
+                .map(entry => ({
+                    timestamp: entry.timestamp,
+                    color: filters[entry.filterIndex].color,
+                    index: entry.index,
+                    filterIndex: entry.filterIndex,
+                    label: filters[entry.filterIndex].label
+                }));
         }
 
         // Function to initialize timeline interactions
