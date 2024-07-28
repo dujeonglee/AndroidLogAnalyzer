@@ -385,17 +385,22 @@
                 logData[currentLogType].isLogFileLoaded = true;
                 updateMatchingList();
                 updateDisplayAndTimeline();
-                enableContainers();
+                toggleContainers();
             };
             reader.readAsText(file);
         }
 
         // Function to enable containers
-        function enableContainers() {
+        function toggleContainers() {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
-            filterContainer.classList.remove('disabled-container');
-            timelineContainer.classList.remove('disabled-container');
+            if (logData[currentLogType].isLogFileLoaded) {
+                filterContainer.classList.remove('disabled-container');
+                timelineContainer.classList.remove('disabled-container');
+            } else {
+                filterContainer.classList.add('disabled-container');
+                timelineContainer.classList.add('disabled-container');
+            }
         }
 
         function binarySearchWithIndex(arr, entry) {
@@ -727,8 +732,6 @@
 
         function openLogType(evt, logType) {
             var i, tabcontent, tablinks;
-            const filterContainer = document.getElementById(`${logType.toLowerCase()}FilterContainer`);
-            const timelineContainer = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
 
             currentLogType = logType;
             if (logType == "UDI") {
@@ -738,14 +741,6 @@
             if (logType == "Tracepoint") {
                 console.error("Tracepoint is not yet supported");
                 return;
-            }
-
-            if (!logData[currentLogType].isLogFileLoaded) {
-                filterContainer.classList.add('disabled-container');
-                timelineContainer.classList.add('disabled-container');
-            } else {
-                filterContainer.classList.remove('disabled-container');
-                timelineContainer.classList.remove('disabled-container');
             }
 
             tabcontent = document.getElementsByClassName("tabcontent");
@@ -760,6 +755,7 @@
             evt.currentTarget.className += " active";
             updateUIForCurrentLogType();
             populatePresetFilterSets();
+            toggleContainers();
         }
 
         // Function to update UI for the current log type
