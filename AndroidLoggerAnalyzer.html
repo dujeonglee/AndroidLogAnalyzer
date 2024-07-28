@@ -279,7 +279,7 @@
                 }
                 logData[currentLogType].isLogFileLoaded = true;
                 updateMatchingList();
-                displayLogContent();
+                updateDisplayAndTimeline();
             };
             reader.readAsText(file);
         }
@@ -336,7 +336,6 @@
                     }
                 }
             }
-            updateLogEvents();
         }
 
         function displayLogContent() {
@@ -357,7 +356,9 @@
                 }
             }
             toggleTimelineVisibility();
-            drawTimeline();
+            if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
+                drawTimeline();
+            }
         }
 
         // Function to activate the filter interface
@@ -434,7 +435,7 @@
             });
             renderFilters();
             updateMatchingList();
-            displayLogContent();
+            updateDisplayAndTimeline();
         }
 
 
@@ -446,7 +447,7 @@
             logData[currentLogType].filters.splice(index, 1);
             renderFilters();
             updateMatchingList();
-            displayLogContent();
+            updateDisplayAndTimeline();
         }
 
         // Function to export filters to a JSON file
@@ -520,8 +521,7 @@
                 renderFilters();
                 updateFilterFileInfo();
                 updateMatchingList();
-                updateLogEvents();
-                displayLogContent();
+                updateDisplayAndTimeline();
             };
             // Read the file as text
             reader.readAsText(file);
@@ -633,23 +633,7 @@
             updateLogFileInfo();
             renderFilters();
             if (logData[currentLogType].isLogFileLoaded) {
-                updateMatchingList();
-                displayLogContent();
-                if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
-                    drawTimeline();
-                }
-            }
-        }
-
-        function updateUIForCurrentLogType() {
-            updateLogFileInfo();
-            renderFilters();
-            if (logData[currentLogType].isLogFileLoaded) {
-                updateMatchingList();
-                displayLogContent();
-                if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
-                    drawTimeline();
-                }
+                updateDisplayAndTimeline();
             }
         }
 
