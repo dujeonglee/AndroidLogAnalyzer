@@ -151,12 +151,15 @@
             margin-right: 5px;
         }
 
+        /* Tab Navigation Styles */
+        /* Container for tab buttons */
         .tab {
             overflow: hidden;
             border: 1px solid #ccc;
             background-color: #f1f1f1;
         }
 
+        /* Individual tab button styling */
         .tab button {
             background-color: inherit;
             float: left;
@@ -167,34 +170,67 @@
             transition: 0.3s;
         }
 
+        /* Hover effect for tab buttons */
         .tab button:hover {
             background-color: #ddd;
         }
 
+        /* Style for active tab button */
         .tab button.active {
             background-color: #ccc;
         }
 
+        /* Content area for each tab */
         .tabcontent {
             display: none;
             padding: 6px 12px;
             border: 1px solid #ccc;
             border-top: none;
         }
+
+        /* Styling for filter dropdowns */
+        .filter-dropdown {
+            margin-bottom: 10px;
+            margin-right: 10px;
+        }
+
+        /* Styling for disabled containers */
+        .disabled-container {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Main title of the application -->
     <h1>CNNT Log Analyzer</h1>
+
+    <!-- Tab navigation for different log types -->
     <div class="tab">
+        <!-- Buttons for each log type, triggering the openLogType function on click -->
         <button class="tablinks" onclick="openLogType(event, 'Framework')">Framework Log</button>
         <button class="tablinks" onclick="openLogType(event, 'Kernel')">Kernel Log</button>
+        <button class="tablinks" onclick="openLogType(event, 'UDI')">UDI Log</button>
+        <button class="tablinks" onclick="openLogType(event, 'Tracepoint')">Tracepoint Log</button>
     </div>
+
+    <!-- Content sections for Framework logs -->
+    <!-- Each section includes: -->
+    <!--   - File input for log upload -->
+    <!--   - Filter options (preset filters, add/export/import filters) -->
+    <!--   - Timeline visualization -->
+    <!--   - Log content display -->
     <div id="Framework" class="tabcontent">
+        <!-- Framework log analysis content -->
         <h2>Framework Log Analysis</h2>
         <input type="file" id="frameworkFileInput" accept=".txt, .log">
         <div id="frameworkLogFileInfo" class="file-info"></div>
-        <div id="frameworkFilterContainer" class="filter-container">
+        <div id="frameworkFilterContainer" class="filter-container disabled-container">
             <h2>Filters</h2>
+            <select id="frameworkPresetFilterSets" class="filter-dropdown">
+                <option value="">Select a preset filter set</option>
+            </select>
+            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
             <button onclick="addFilter()">Add Filter</button>
             <button onclick="exportFilters()">Export Filters</button>
             <input type="file" id="frameworkImportInput" accept=".json" onchange="importFilters(event)">
@@ -204,19 +240,30 @@
         </div>
         <br>
         <h2>Timeline</h2>
-        <div id="frameworkTimelineContainer" class="timeline-container">
+        <div id="frameworkTimelineContainer" class="timeline-container disabled-container">
             <canvas id="frameworkTimelineCanvas"></canvas>
         </div>
         <br>
         <h2>Log</h2>
         <div id="frameworkLogContent" class="log-content"></div>
     </div>
+    <!-- Content sections for Kernel logs -->
+    <!-- Each section includes: -->
+    <!--   - File input for log upload -->
+    <!--   - Filter options (preset filters, add/export/import filters) -->
+    <!--   - Timeline visualization -->
+    <!--   - Log content display -->
     <div id="Kernel" class="tabcontent">
+        <!-- Kernel log analysis content -->
         <h2>Kernel Log Analysis</h2>
         <input type="file" id="kernelFileInput" accept=".txt, .log">
         <div id="kernelLogFileInfo" class="file-info"></div>
-        <div id="kernelFilterContainer" class="filter-container">
+        <div id="kernelFilterContainer" class="filter-container disabled-container">
             <h2>Filters</h2>
+            <select id="kernelPresetFilterSets" class="filter-dropdown">
+                <option value="">Select a preset filter set</option>
+            </select>
+            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
             <button onclick="addFilter()">Add Filter</button>
             <button onclick="exportFilters()">Export Filters</button>
             <input type="file" id="kernelImportInput" accept=".json" onchange="importFilters(event)">
@@ -226,42 +273,100 @@
         </div>
         <br>
         <h2>Timeline</h2>
-        <div id="kernelTimelineContainer" class="timeline-container">
+        <div id="kernelTimelineContainer" class="timeline-container disabled-container">
             <canvas id="kernelTimelineCanvas"></canvas>
         </div>
         <br>
         <h2>Log</h2>
         <div id="kernelLogContent" class="log-content"></div>
     </div>
+
+    <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
 
     <script>
-        // Separate data structures for each log type
+        // Data structure to store log information for different log types
         let logData = {
             Framework: {
-                logLines: [],
-                filters: [],
-                logEvents: [],
-                matchingList: [],
-                logFileName: '',
-                isLogFileLoaded: false
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
             },
             Kernel: {
-                logLines: [],
-                filters: [],
-                logEvents: [],
-                matchingList: [],
-                logFileName: '',
-                isLogFileLoaded: false
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
             }
         };
 
-        // Shared variables
-        let currentLogType = 'Framework';
-        let eventSpacing = 80;
-        let timelineOffset = 0;
-        let isDragging = false;
-        let lastMouseX;
+        // Shared variables for application state
+        let currentLogType = 'Framework';  // Currently active log type
+        let eventSpacing = 80;  // Spacing between events in the timeline
+        let timelineOffset = 0; // Offset for timeline scrolling
+        let isDragging = false; // Flag to track if the timeline is being dragged
+        let lastMouseX;         // Last recorded mouse X position for dragging
+
+        // Preset filters for different log types
+        const presetFilterSets = {
+            Framework: {
+                // Array of predefined filters for Framework logs
+                'Basic Filter': [
+                    {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "isRegex": false},
+                    {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "isRegex": false},
+                    {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
+                ]
+            },
+            Kernel: {
+                // Array of predefined filters for Kernel logs
+                'Tx / Rx': [
+                    {"checked": true, "expression": "_tx_", "color": "#ff0000", "label": "Tx Data", "isRegex": false},
+                    {"checked": true, "expression": "_rx_", "color": "#000000", "label": "Rx Data", "isRegex": false}
+                ]
+            }
+        };
+
+        // Function to populate the preset filter set dropdown
+        function populatePresetFilterSets() {
+            // Dynamically populates the dropdown with options based on the current log type
+            // Creates an option for each preset filter set
+            const dropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
+            dropdown.innerHTML = '<option value="">Select a preset filter set</option>';
+            Object.keys(presetFilterSets[currentLogType]).forEach((setName) => {
+                const option = document.createElement('option');
+                option.value = setName;
+                option.textContent = setName;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Function to add selected preset filters to the active filter list
+        function addSelectedPresetFilters() {
+            // Checks if a log file is loaded
+            // Retrieves the selected preset filter set
+            // Adds all filters from the selected set to the active filters
+            // Updates the UI, including filter rendering and log display
+            // Resets the dropdown selection after adding filters
+            if (!logData[currentLogType].isLogFileLoaded) return;
+            const setDropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
+            const setName = setDropdown.value;
+
+            if (setName) {
+                // Add all filters from the selected set
+                presetFilterSets[currentLogType][setName].forEach(filter => {
+                    logData[currentLogType].filters.push({...filter, checked: true});
+                });
+                renderFilters();
+                updateMatchingList();
+                updateDisplayAndTimeline();
+                setDropdown.value = ''; // Reset dropdown after adding filters
+            }
+        }
 
 
         // This function is triggered when a file is selected in the input
@@ -280,10 +385,18 @@
                 logData[currentLogType].isLogFileLoaded = true;
                 updateMatchingList();
                 updateDisplayAndTimeline();
+                enableContainers();
             };
             reader.readAsText(file);
         }
 
+        // Function to enable containers
+        function enableContainers() {
+            const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
+            const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
+            filterContainer.classList.remove('disabled-container');
+            timelineContainer.classList.remove('disabled-container');
+        }
 
         function binarySearchWithIndex(arr, entry) {
             // Initialize search boundaries
@@ -614,7 +727,27 @@
 
         function openLogType(evt, logType) {
             var i, tabcontent, tablinks;
+            const filterContainer = document.getElementById(`${logType.toLowerCase()}FilterContainer`);
+            const timelineContainer = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
+
             currentLogType = logType;
+            if (logType == "UDI") {
+                console.error("UDI is not yet supported");
+                return;
+            }
+            if (logType == "Tracepoint") {
+                console.error("Tracepoint is not yet supported");
+                return;
+            }
+
+            if (!logData[currentLogType].isLogFileLoaded) {
+                filterContainer.classList.add('disabled-container');
+                timelineContainer.classList.add('disabled-container');
+            } else {
+                filterContainer.classList.remove('disabled-container');
+                timelineContainer.classList.remove('disabled-container');
+            }
+
             tabcontent = document.getElementsByClassName("tabcontent");
             for (i = 0; i < tabcontent.length; i++) {
                 tabcontent[i].style.display = "none";
@@ -626,6 +759,7 @@
             document.getElementById(logType).style.display = "block";
             evt.currentTarget.className += " active";
             updateUIForCurrentLogType();
+            populatePresetFilterSets();
         }
 
         // Function to update UI for the current log type
@@ -869,8 +1003,9 @@
         initializeTimelineInteractions('Framework');
         initializeTimelineInteractions('Kernel');
 
-        // Open Framework tab by default
+        // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
+        openLogType({ currentTarget: document.querySelector('.tablinks') }, 'Framework');
     </script>
 </body>
 </html>
