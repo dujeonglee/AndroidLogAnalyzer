@@ -247,6 +247,7 @@
         <h2>Log</h2>
         <div id="frameworkLogContent" class="log-content"></div>
     </div>
+
     <!-- Content sections for Kernel logs -->
     <!-- Each section includes: -->
     <!--   - File input for log upload -->
@@ -281,6 +282,73 @@
         <div id="kernelLogContent" class="log-content"></div>
     </div>
 
+    <!-- Content sections for UDI logs -->
+    <!-- Each section includes: -->
+    <!--   - File input for log upload -->
+    <!--   - Filter options (preset filters, add/export/import filters) -->
+    <!--   - Timeline visualization -->
+    <!--   - Log content display -->
+    <div id="UDI" class="tabcontent">
+        <!-- UDI log analysis content -->
+        <h2>UDI Log Analysis</h2>
+        <input type="file" id="udiFileInput" accept=".txt, .log">
+        <div id="udiLogFileInfo" class="file-info"></div>
+        <div id="udiFilterContainer" class="filter-container disabled-container">
+            <h2>Filters</h2>
+            <select id="udiPresetFilterSets" class="filter-dropdown">
+                <option value="">Select a preset filter set</option>
+            </select>
+            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+            <button onclick="addFilter()">Add Filter</button>
+            <button onclick="exportFilters()">Export Filters</button>
+            <input type="file" id="udiImportInput" accept=".json" onchange="importFilters(event)">
+            <div id="udiFilterFileInfo" class="file-info"></div>
+            <br><br>
+            <div id="udiFilters"></div>
+        </div>
+        <br>
+        <h2>Timeline</h2>
+        <div id="udiTimelineContainer" class="timeline-container disabled-container">
+            <canvas id="udiTimelineCanvas"></canvas>
+        </div>
+        <br>
+        <h2>Log</h2>
+        <div id="udiLogContent" class="log-content"></div>
+    </div>
+
+    <!-- Content sections for Tracepoint logs -->
+    <!-- Each section includes: -->
+    <!--   - File input for log upload -->
+    <!--   - Filter options (preset filters, add/export/import filters) -->
+    <!--   - Timeline visualization -->
+    <!--   - Log content display -->
+    <div id="Tracepoint" class="tabcontent">
+        <!-- UDI log analysis content -->
+        <h2>Tracepoint Log Analysis</h2>
+        <input type="file" id="tracepointFileInput" accept=".txt, .log">
+        <div id="tracepointLogFileInfo" class="file-info"></div>
+        <div id="tracepointFilterContainer" class="filter-container disabled-container">
+            <h2>Filters</h2>
+            <select id="tracepointPresetFilterSets" class="filter-dropdown">
+                <option value="">Select a preset filter set</option>
+            </select>
+            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+            <button onclick="addFilter()">Add Filter</button>
+            <button onclick="exportFilters()">Export Filters</button>
+            <input type="file" id="tracepointImportInput" accept=".json" onchange="importFilters(event)">
+            <div id="tracepointFilterFileInfo" class="file-info"></div>
+            <br><br>
+            <div id="tracepointFilters"></div>
+        </div>
+        <br>
+        <h2>Timeline</h2>
+        <div id="tracepointTimelineContainer" class="timeline-container disabled-container">
+            <canvas id="tracepointTimelineCanvas"></canvas>
+        </div>
+        <br>
+        <h2>Log</h2>
+        <div id="tracepointLogContent" class="log-content"></div>
+    </div>
     <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
 
@@ -296,6 +364,22 @@
                 isLogFileLoaded: false // Flag to indicate if a log file is loaded
             },
             Kernel: {
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+            },
+            UDI: {
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+            },
+            Tracepoint: {
                 logLines: [],      // Array to store individual log lines
                 filters: [],       // Array to store active filters
                 logEvents: [],     // Array to store parsed log events
@@ -324,9 +408,21 @@
             },
             Kernel: {
                 // Array of predefined filters for Kernel logs
-                'Tx / Rx': [
-                    {"checked": true, "expression": "_tx_", "color": "#ff0000", "label": "Tx Data", "isRegex": false},
-                    {"checked": true, "expression": "_rx_", "color": "#000000", "label": "Rx Data", "isRegex": false}
+                'WLBT': [
+                    {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
+                ]
+            },
+            UDI: {
+                // Array of predefined filters for Kernel logs
+                'MLME / MA': [
+                    {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "isRegex": false},
+                    {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
+                ]
+            },
+            Tracepoint: {
+                // Array of predefined filters for Kernel logs
+                'TCP probe': [
+                    {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
                 ]
             }
         };
@@ -441,12 +537,13 @@
         function updateMatchingList() {
             logData[currentLogType].matchingList = [];
             for (let [lineIndex, line] of logData[currentLogType].logLines.entries()) {
-                const timestamp = parseTimestamp(line);
-                if (!timestamp) continue;
+                let [timestampStr, timestamp] = parseTimestamp(line);
+                if (timestampStr === "") continue;
                 for (let [filterIndex, filter] of logData[currentLogType].filters.entries()) {
                     if (evaluateFilter(line, filter)) {
                         insertIntoMatchingList({
                             timestamp,
+                            timestampStr,
                             line,
                             index: lineIndex,
                             filterIndex
@@ -463,8 +560,8 @@
             for (let entry of logData[currentLogType].matchingList) {
                 if (logData[currentLogType].filters[entry.filterIndex].checked) {
                     const lineElement = document.createElement('div');
-                    const timestamp = entry.line.substring(0, timestampLength(entry.line));
-                    const logText = entry.line.substring(timestampLength(entry.line));
+                    const timestamp = entry.timestampStr;
+                    const logText = escapeHtml(entry.line.replace(entry.timestampStr, ''));
                     lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${logData[currentLogType].filters[entry.filterIndex].color}">[${logData[currentLogType].filters[entry.filterIndex].label}]</span> ${logText}`;
                     lineElement.style.color = 'black';
                     lineElement.classList.add('log-line');
@@ -696,20 +793,31 @@
                     const [month, day] = date.split('-');
                     const [hour, minute, secondWithMs] = time.split(':');
                     const [second, ms] = secondWithMs.split('.');
-                    return new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms);
+                    return [timestamp, new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms)];
                 }
-            } else if (currentLogType === 'Kernel') {
-                match = line.match(/^\[(\d+\.\d+)\]/);
+            } else if (currentLogType === 'Kernel' || currentLogType === 'Tracepoint') {
+                match = line.match(/\b\d+\.\d+\b/);
                 if (match) {
-                    const [, timestamp] = match;
-                    const seconds = parseFloat(timestamp);
-                    // Assuming the log starts at the beginning of the current day
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return new Date(today.getTime() + seconds * 1000);
+                    const [timestamp, ] = match;
+                    return [timestamp, parseFloat(timestamp)];
+                }
+            } else if (currentLogType === 'UDI') {
+                match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
+                if (match) {
+                    // Split the string into date and time parts
+                    const [timestamp, ] = match;
+                    const [datePart, timePart] = timestamp.split('-');
+                    // Split the date part into year, month, day
+                    const [year, month, day] = datePart.split('/');
+                    // Split the time part into hours, minutes, seconds (and milliseconds)
+                    const [time, milliseconds] = timePart.split('.');
+                    const [hours, minutes, seconds] = time.split(':');
+                    // Create a new Date object
+                    // Note: months in JavaScript Date are 0-indexed, so we subtract 1 from the month
+                    return [timestamp, new Date(year, month - 1, day, hours, minutes, seconds, milliseconds)];
                 }
             }
-            return null;
+            return [null, ""];
         }
 
         function timestampLength(line) {
@@ -726,6 +834,18 @@
                     const [, timestamp] = match;
                     return timestamp.length + 2;
                 }
+            } else if (currentLogType === 'UDI') {
+                match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
+                if (match) {
+                    const [timestamp, ] = match;
+                    return timestamp.length;
+                }
+            } else if (currentLogType === 'Tracepoint') {
+                match = line.match(/\b\d+\.\d+\b/);
+                if (match) {
+                    const [timestamp, ] = match;
+                    return timestamp.length;
+                }
             }
             return 0;
         }
@@ -734,14 +854,6 @@
             var i, tabcontent, tablinks;
 
             currentLogType = logType;
-            if (logType == "UDI") {
-                console.error("UDI is not yet supported");
-                return;
-            }
-            if (logType == "Tracepoint") {
-                console.error("Tracepoint is not yet supported");
-                return;
-            }
 
             tabcontent = document.getElementsByClassName("tabcontent");
             for (i = 0; i < tabcontent.length; i++) {
@@ -791,7 +903,14 @@
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 + 10);
                 ctx.rotate(Math.PI / 4);
-                ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                if (currentLogType === "Framework")
+                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                else if (currentLogType === "Kernel")
+                    ctx.fillText(event.timestamp, 0, 0);
+                else if (currentLogType === "UDI")
+                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                else if (currentLogType === "Tracepoint")
+                    ctx.fillText(event.timestamp, 0, 0);
                 ctx.restore();
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 - 10);
@@ -841,12 +960,13 @@
             // Iterate through all log lines
             for (let [lineIndex, line] of logData[currentLogType].logLines.entries()) {
                 // Parse timestamp from the log line
-                const timestamp = parseTimestamp(line);
-                if (!timestamp) continue; // Skip lines without a valid timestamp
+                let [timestampStr, timestamp] = parseTimestamp(line);
+                if (timestamp === "") continue; // Skip lines without a valid timestamp
                 // If the line matches the filter, add it to the matching list
                 if (evaluateFilter(line, logData[currentLogType].filters[filterIndex])) {
                     insertIntoMatchingList({
                         timestamp,
+                        timestampStr,
                         line,
                         index: lineIndex,
                         filterIndex
@@ -982,10 +1102,14 @@
         // Event listener for changes in the filters container
         document.getElementById('frameworkFilters').addEventListener('change', (event) => onFilterChange(event));
         document.getElementById('kernelFilters').addEventListener('change', (event) => onFilterChange(event));
+        document.getElementById('udiFilters').addEventListener('change', (event) => onFilterChange(event));
+        document.getElementById('tracepointFilters').addEventListener('change', (event) => onFilterChange(event));
 
         // Event listeners
         document.getElementById('frameworkFileInput').addEventListener('change', (event) => loadLogFile(event, 'Framework'));
         document.getElementById('kernelFileInput').addEventListener('change', (event) => loadLogFile(event, 'Kernel'));
+        document.getElementById('udiFileInput').addEventListener('change', (event) => loadLogFile(event, 'UDI'));
+        document.getElementById('tracepointFileInput').addEventListener('change', (event) => loadLogFile(event, 'Tracepoint'));
 
         // Reset file input value when clicked
         document.getElementById('frameworkFileInput').addEventListener('click', function(event) {
@@ -994,10 +1118,18 @@
         document.getElementById('kernelFileInput').addEventListener('click', function(event) {
             event.target.value = null;
         });
+        document.getElementById('udiFileInput').addEventListener('click', function(event) {
+            event.target.value = null;
+        });
+        document.getElementById('tracepointFileInput').addEventListener('click', function(event) {
+            event.target.value = null;
+        });
 
         // Initialize timeline interactions
         initializeTimelineInteractions('Framework');
         initializeTimelineInteractions('Kernel');
+        initializeTimelineInteractions('UDI');
+        initializeTimelineInteractions('Tracepoint');
 
         // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
