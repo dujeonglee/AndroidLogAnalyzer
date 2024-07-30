@@ -210,6 +210,7 @@
         <!-- Buttons for each log type, triggering the openLogType function on click -->
         <button class="tablinks" onclick="openLogType(event, 'Framework')">Framework Log</button>
         <button class="tablinks" onclick="openLogType(event, 'Kernel')">Kernel Log</button>
+        <button class="tablinks" onclick="openLogType(event, 'Driver')">Driver Log</button>
         <button class="tablinks" onclick="openLogType(event, 'UDI')">UDI Log</button>
         <button class="tablinks" onclick="openLogType(event, 'Tracepoint')">Tracepoint Log</button>
     </div>
@@ -280,6 +281,40 @@
         <br>
         <h2>Log</h2>
         <div id="kernelLogContent" class="log-content"></div>
+    </div>
+
+    <!-- Content sections for Framework logs -->
+    <!-- Each section includes: -->
+    <!--   - File input for log upload -->
+    <!--   - Filter options (preset filters, add/export/import filters) -->
+    <!--   - Timeline visualization -->
+    <!--   - Log content display -->
+    <div id="Driver" class="tabcontent">
+        <!-- Framework log analysis content -->
+        <h2>Driver Log Analysis</h2>
+        <input type="file" id="driverFileInput" accept=".txt, .log">
+        <div id="driverLogFileInfo" class="file-info"></div>
+        <div id="driverFilterContainer" class="filter-container disabled-container">
+            <h2>Filters</h2>
+            <select id="driverPresetFilterSets" class="filter-dropdown">
+                <option value="">Select a preset filter set</option>
+            </select>
+            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+            <button onclick="addFilter()">Add Filter</button>
+            <button onclick="exportFilters()">Export Filters</button>
+            <input type="file" id="driverImportInput" accept=".json" onchange="importFilters(event)">
+            <div id="driverFilterFileInfo" class="file-info"></div>
+            <br><br>
+            <div id="driverFilters"></div>
+        </div>
+        <br>
+        <h2>Timeline</h2>
+        <div id="driverTimelineContainer" class="timeline-container disabled-container">
+            <canvas id="driverTimelineCanvas"></canvas>
+        </div>
+        <br>
+        <h2>Log</h2>
+        <div id="driverLogContent" class="log-content"></div>
     </div>
 
     <!-- Content sections for UDI logs -->
@@ -371,6 +406,14 @@
                 logFileName: '',   // Name of the loaded log file
                 isLogFileLoaded: false // Flag to indicate if a log file is loaded
             },
+            Driver: {
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+            },
             UDI: {
                 logLines: [],      // Array to store individual log lines
                 filters: [],       // Array to store active filters
@@ -410,6 +453,12 @@
                 // Array of predefined filters for Kernel logs
                 'WLBT': [
                     {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
+                ]
+            },
+            Driver: {
+                // Array of predefined filters for Kernel logs
+                'WLBT': [
+                    {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
                 ]
             },
             UDI: {
@@ -801,6 +850,12 @@
                     const [timestamp, ] = match;
                     return [timestamp, parseFloat(timestamp)];
                 }
+            } else if (currentLogType === 'Driver') {
+                match = line.match(/\[(\d+\.\d+)\]/);
+                if (match) {
+                    const [, timestamp] = match;
+                    return [timestamp, parseFloat(timestamp)];
+                }
             } else if (currentLogType === 'UDI') {
                 match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
                 if (match) {
@@ -903,13 +958,9 @@
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 + 10);
                 ctx.rotate(Math.PI / 4);
-                if (currentLogType === "Framework")
+                if (currentLogType === "Framework" || currentLogType === "UDI")
                     ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
-                else if (currentLogType === "Kernel")
-                    ctx.fillText(event.timestamp, 0, 0);
-                else if (currentLogType === "UDI")
-                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
-                else if (currentLogType === "Tracepoint")
+                else if (currentLogType === "Kernel" || currentLogType === "Driver" || currentLogType === "Tracepoint")
                     ctx.fillText(event.timestamp, 0, 0);
                 ctx.restore();
                 ctx.save();
@@ -1102,12 +1153,14 @@
         // Event listener for changes in the filters container
         document.getElementById('frameworkFilters').addEventListener('change', (event) => onFilterChange(event));
         document.getElementById('kernelFilters').addEventListener('change', (event) => onFilterChange(event));
+        document.getElementById('driverFilters').addEventListener('change', (event) => onFilterChange(event));
         document.getElementById('udiFilters').addEventListener('change', (event) => onFilterChange(event));
         document.getElementById('tracepointFilters').addEventListener('change', (event) => onFilterChange(event));
 
         // Event listeners
         document.getElementById('frameworkFileInput').addEventListener('change', (event) => loadLogFile(event, 'Framework'));
         document.getElementById('kernelFileInput').addEventListener('change', (event) => loadLogFile(event, 'Kernel'));
+        document.getElementById('driverFileInput').addEventListener('change', (event) => loadLogFile(event, 'Driver'));
         document.getElementById('udiFileInput').addEventListener('change', (event) => loadLogFile(event, 'UDI'));
         document.getElementById('tracepointFileInput').addEventListener('change', (event) => loadLogFile(event, 'Tracepoint'));
 
@@ -1116,6 +1169,9 @@
             event.target.value = null;
         });
         document.getElementById('kernelFileInput').addEventListener('click', function(event) {
+            event.target.value = null;
+        });
+        document.getElementById('driverFileInput').addEventListener('click', function(event) {
             event.target.value = null;
         });
         document.getElementById('udiFileInput').addEventListener('click', function(event) {
@@ -1128,6 +1184,7 @@
         // Initialize timeline interactions
         initializeTimelineInteractions('Framework');
         initializeTimelineInteractions('Kernel');
+        initializeTimelineInteractions('Driver');
         initializeTimelineInteractions('UDI');
         initializeTimelineInteractions('Tracepoint');
 
