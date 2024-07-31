@@ -207,274 +207,287 @@
 
     <!-- Tab navigation for different log types -->
     <div class="tab">
-        <!-- Buttons for each log type, triggering the openLogType function on click -->
-        <button class="tablinks" onclick="openLogType(event, 'Framework')">Framework Log</button>
-        <button class="tablinks" onclick="openLogType(event, 'Kernel')">Kernel Log</button>
-        <button class="tablinks" onclick="openLogType(event, 'Driver')">Driver Log</button>
-        <button class="tablinks" onclick="openLogType(event, 'UDI')">UDI Log</button>
-        <button class="tablinks" onclick="openLogType(event, 'Tracepoint')">Tracepoint Log</button>
+        <!-- Tab is rendored by rendorTab function -->
     </div>
 
-    <!-- Content sections for Framework logs -->
-    <!-- Each section includes: -->
-    <!--   - File input for log upload -->
-    <!--   - Filter options (preset filters, add/export/import filters) -->
-    <!--   - Timeline visualization -->
-    <!--   - Log content display -->
-    <div id="Framework" class="tabcontent">
-        <!-- Framework log analysis content -->
-        <h2>Framework Log Analysis</h2>
-        <input type="file" id="frameworkFileInput" accept=".txt, .log">
-        <div id="frameworkLogFileInfo" class="file-info"></div>
-        <div id="frameworkFilterContainer" class="filter-container disabled-container">
-            <h2>Filters</h2>
-            <select id="frameworkPresetFilterSets" class="filter-dropdown">
-                <option value="">Select a preset filter set</option>
-            </select>
-            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-            <button onclick="addFilter()">Add Filter</button>
-            <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="frameworkImportInput" accept=".json" onchange="importFilters(event)">
-            <div id="frameworkFilterFileInfo" class="file-info"></div>
-            <br><br>
-            <div id="frameworkFilters"></div>
-        </div>
-        <br>
-        <h2>Timeline</h2>
-        <div id="frameworkTimelineContainer" class="timeline-container disabled-container">
-            <canvas id="frameworkTimelineCanvas"></canvas>
-        </div>
-        <br>
-        <h2>Log</h2>
-        <div id="frameworkLogContent" class="log-content"></div>
-    </div>
+    <!-- Tab content is rendored by rendorTabContent function -->
 
-    <!-- Content sections for Kernel logs -->
-    <!-- Each section includes: -->
-    <!--   - File input for log upload -->
-    <!--   - Filter options (preset filters, add/export/import filters) -->
-    <!--   - Timeline visualization -->
-    <!--   - Log content display -->
-    <div id="Kernel" class="tabcontent">
-        <!-- Kernel log analysis content -->
-        <h2>Kernel Log Analysis</h2>
-        <input type="file" id="kernelFileInput" accept=".txt, .log">
-        <div id="kernelLogFileInfo" class="file-info"></div>
-        <div id="kernelFilterContainer" class="filter-container disabled-container">
-            <h2>Filters</h2>
-            <select id="kernelPresetFilterSets" class="filter-dropdown">
-                <option value="">Select a preset filter set</option>
-            </select>
-            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-            <button onclick="addFilter()">Add Filter</button>
-            <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="kernelImportInput" accept=".json" onchange="importFilters(event)">
-            <div id="kernelFilterFileInfo" class="file-info"></div>
-            <br><br>
-            <div id="kernelFilters"></div>
-        </div>
-        <br>
-        <h2>Timeline</h2>
-        <div id="kernelTimelineContainer" class="timeline-container disabled-container">
-            <canvas id="kernelTimelineCanvas"></canvas>
-        </div>
-        <br>
-        <h2>Log</h2>
-        <div id="kernelLogContent" class="log-content"></div>
-    </div>
-
-    <!-- Content sections for Framework logs -->
-    <!-- Each section includes: -->
-    <!--   - File input for log upload -->
-    <!--   - Filter options (preset filters, add/export/import filters) -->
-    <!--   - Timeline visualization -->
-    <!--   - Log content display -->
-    <div id="Driver" class="tabcontent">
-        <!-- Framework log analysis content -->
-        <h2>Driver Log Analysis</h2>
-        <input type="file" id="driverFileInput" accept=".txt, .log">
-        <div id="driverLogFileInfo" class="file-info"></div>
-        <div id="driverFilterContainer" class="filter-container disabled-container">
-            <h2>Filters</h2>
-            <select id="driverPresetFilterSets" class="filter-dropdown">
-                <option value="">Select a preset filter set</option>
-            </select>
-            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-            <button onclick="addFilter()">Add Filter</button>
-            <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="driverImportInput" accept=".json" onchange="importFilters(event)">
-            <div id="driverFilterFileInfo" class="file-info"></div>
-            <br><br>
-            <div id="driverFilters"></div>
-        </div>
-        <br>
-        <h2>Timeline</h2>
-        <div id="driverTimelineContainer" class="timeline-container disabled-container">
-            <canvas id="driverTimelineCanvas"></canvas>
-        </div>
-        <br>
-        <h2>Log</h2>
-        <div id="driverLogContent" class="log-content"></div>
-    </div>
-
-    <!-- Content sections for UDI logs -->
-    <!-- Each section includes: -->
-    <!--   - File input for log upload -->
-    <!--   - Filter options (preset filters, add/export/import filters) -->
-    <!--   - Timeline visualization -->
-    <!--   - Log content display -->
-    <div id="UDI" class="tabcontent">
-        <!-- UDI log analysis content -->
-        <h2>UDI Log Analysis</h2>
-        <input type="file" id="udiFileInput" accept=".txt, .log">
-        <div id="udiLogFileInfo" class="file-info"></div>
-        <div id="udiFilterContainer" class="filter-container disabled-container">
-            <h2>Filters</h2>
-            <select id="udiPresetFilterSets" class="filter-dropdown">
-                <option value="">Select a preset filter set</option>
-            </select>
-            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-            <button onclick="addFilter()">Add Filter</button>
-            <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="udiImportInput" accept=".json" onchange="importFilters(event)">
-            <div id="udiFilterFileInfo" class="file-info"></div>
-            <br><br>
-            <div id="udiFilters"></div>
-        </div>
-        <br>
-        <h2>Timeline</h2>
-        <div id="udiTimelineContainer" class="timeline-container disabled-container">
-            <canvas id="udiTimelineCanvas"></canvas>
-        </div>
-        <br>
-        <h2>Log</h2>
-        <div id="udiLogContent" class="log-content"></div>
-    </div>
-
-    <!-- Content sections for Tracepoint logs -->
-    <!-- Each section includes: -->
-    <!--   - File input for log upload -->
-    <!--   - Filter options (preset filters, add/export/import filters) -->
-    <!--   - Timeline visualization -->
-    <!--   - Log content display -->
-    <div id="Tracepoint" class="tabcontent">
-        <!-- UDI log analysis content -->
-        <h2>Tracepoint Log Analysis</h2>
-        <input type="file" id="tracepointFileInput" accept=".txt, .log">
-        <div id="tracepointLogFileInfo" class="file-info"></div>
-        <div id="tracepointFilterContainer" class="filter-container disabled-container">
-            <h2>Filters</h2>
-            <select id="tracepointPresetFilterSets" class="filter-dropdown">
-                <option value="">Select a preset filter set</option>
-            </select>
-            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-            <button onclick="addFilter()">Add Filter</button>
-            <button onclick="exportFilters()">Export Filters</button>
-            <input type="file" id="tracepointImportInput" accept=".json" onchange="importFilters(event)">
-            <div id="tracepointFilterFileInfo" class="file-info"></div>
-            <br><br>
-            <div id="tracepointFilters"></div>
-        </div>
-        <br>
-        <h2>Timeline</h2>
-        <div id="tracepointTimelineContainer" class="timeline-container disabled-container">
-            <canvas id="tracepointTimelineCanvas"></canvas>
-        </div>
-        <br>
-        <h2>Log</h2>
-        <div id="tracepointLogContent" class="log-content"></div>
-    </div>
     <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
 
     <script>
-        // Data structure to store log information for different log types
-        let logData = {
+        // Tab list
+        const tabList = {
             Framework: {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                presetFilter: {
+                    // Array of predefined filters for Framework logs
+                    'Basic Filter': [
+                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "isRegex": false},
+                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "isRegex": false},
+                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
+                    if (match) {
+                        const [, timestamp] = match;
+                        const [date, time] = timestamp.split(' ');
+                        const [month, day] = date.split('-');
+                        const [hour, minute, secondWithMs] = time.split(':');
+                        const [second, ms] = secondWithMs.split('.');
+                        return [timestamp, new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms)];
+                    }
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                }
             },
             Kernel: {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                presetFilter: {
+                    // Array of predefined filters for Framework logs
+                    'WLBT': [
+                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    let match = line.match(/\b\d+\.\d+\b/);
+                    if (match) {
+                        const [timestamp, ] = match;
+                        return [timestamp, parseFloat(timestamp)];
+                    }
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp, 0, 0);
+                }
             },
             Driver: {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                presetFilter: {
+                    // Array of predefined filters for Framework logs
+                    'WLBT': [
+                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    match = line.match(/\[(\d+\.\d+)\]/);
+                    if (match) {
+                        const [, timestamp] = match;
+                        return [timestamp, parseFloat(timestamp)];
+                    }
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp, 0, 0);
+                }
             },
             UDI: {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                presetFilter: {
+                    'MLME / MA': [
+                        {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "isRegex": false},
+                        {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
+                    if (match) {
+                        // Split the string into date and time parts
+                        const [timestamp, ] = match;
+                        const [datePart, timePart] = timestamp.split('-');
+                        // Split the date part into year, month, day
+                        const [year, month, day] = datePart.split('/');
+                        // Split the time part into hours, minutes, seconds (and milliseconds)
+                        const [time, milliseconds] = timePart.split('.');
+                        const [hours, minutes, seconds] = time.split(':');
+                        // Create a new Date object
+                        // Note: months in JavaScript Date are 0-indexed, so we subtract 1 from the month
+                        return [timestamp, new Date(year, month - 1, day, hours, minutes, seconds, milliseconds)];
+                    }
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
+                }
             },
             Tracepoint: {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                presetFilter: {
+                    // Array of predefined filters for Framework logs
+                    'TCP': [
+                        {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    let match = line.match(/\b\d+\.\d+\b/);
+                    if (match) {
+                        const [timestamp, ] = match;
+                        return [timestamp, parseFloat(timestamp)];
+                    }
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp, 0, 0);
+                }
+            },
+            TestTab: {
+                presetFilter: {
+                    // Array of predefined filters for Framework logs
+                    'TCP probe': [
+                        {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
+                    ]
+                },
+                parseTimestamp: function(line) {
+                    return [null, ""];
+                },
+                fillTimestamp: function(ctx, event) {
+                    ctx.fillText(event.timestamp, 0, 0);
+                }
             }
-        };
-
+        }
         // Shared variables for application state
-        let currentLogType = 'Framework';  // Currently active log type
+        let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
         let eventSpacing = 80;  // Spacing between events in the timeline
         let timelineOffset = 0; // Offset for timeline scrolling
         let isDragging = false; // Flag to track if the timeline is being dragged
         let lastMouseX;         // Last recorded mouse X position for dragging
 
-        // Preset filters for different log types
-        const presetFilterSets = {
-            Framework: {
-                // Array of predefined filters for Framework logs
-                'Basic Filter': [
-                    {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "isRegex": false},
-                    {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "isRegex": false},
-                    {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
-                ]
-            },
-            Kernel: {
-                // Array of predefined filters for Kernel logs
-                'WLBT': [
-                    {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
-                ]
-            },
-            Driver: {
-                // Array of predefined filters for Kernel logs
-                'WLBT': [
-                    {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
-                ]
-            },
-            UDI: {
-                // Array of predefined filters for Kernel logs
-                'MLME / MA': [
-                    {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "isRegex": false},
-                    {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
-                ]
-            },
-            Tracepoint: {
-                // Array of predefined filters for Kernel logs
-                'TCP probe': [
-                    {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
-                ]
+        // Rendoring tab
+        function rendorTab(tabList) {
+            // Get the div element with class "tab"
+            const tabDiv = document.querySelector('.tab');
+            // Loop through the tabList and create buttons
+            Object.keys(tabList).forEach(tabName => {
+                // Create a new button element
+                const button = document.createElement('button');
+                // Set the button's class
+                button.className = 'tablinks';
+                // Set the button's onclick attribute
+                button.setAttribute('onclick', `openLogType(event, '${tabName}')`);
+                // Set the button's text content
+                button.textContent = `${tabName} Log`;
+                // Append the button to the tab div
+                tabDiv.appendChild(button);
+            })
+        }
+
+        // Rendoring tab contents
+        function rendorTabContent(tabList) {
+            const body = document.body;
+
+            Object.keys(tabList).forEach(tabName => {
+                const tabContent = document.createElement('div');
+                tabContent.id = tabName;
+                tabContent.className = 'tabcontent';
+
+                tabContent.innerHTML = `
+                    <h2>${tabName} Log Analysis</h2>
+                    <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                    <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                    <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                        <h2>Filters</h2>
+                        <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                            <option value="">Select a preset filter set</option>
+                        </select>
+                        <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                        <button onclick="addFilter()">Add Filter</button>
+                        <button onclick="exportFilters()">Export Filters</button>
+                        <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                        <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                        <br><br>
+                        <div id="${tabName.toLowerCase()}Filters"></div>
+                    </div>
+                    <br>
+                    <h2>Timeline</h2>
+                    <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                        <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                    </div>
+                    <br>
+                    <h2>Log</h2>
+                    <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+                `;
+
+                body.appendChild(tabContent);
+            });
+        }
+
+        function initializeLogData(tabList) {
+            Object.keys(tabList).forEach(tabName => {
+                tabList[tabName].logData = {
+                    logLines: [],      // Array to store individual log lines
+                    filters: [],       // Array to store active filters
+                    logEvents: [],     // Array to store parsed log events
+                    matchingList: [],  // Array to store lines matching current filters
+                    logFileName: '',   // Name of the loaded log file
+                    isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                };
+            });
+        }
+
+        function onFilterChange(event) {
+            // Exit if no log file is loaded
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
+            // Find the filter container and its index
+            const filterDiv = event.target.closest('.filter-container');
+            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
+            // Handle checkbox changes
+            if (event.target.type === 'checkbox') {
+                // Check if it's not the regex toggle
+                if (!event.target.closest('.toggle-switch')) {
+                    // Update filter's checked status
+                    tabList[currentLogType].logData.filters[index].checked = event.target.checked;
+                    updateDisplayAndTimeline();
+                } else {
+                    // Handle regex toggle
+                    tabList[currentLogType].logData.filters[index].isRegex = event.target.checked;
+                    updateFilterMatchingList(index);
+                    updateDisplayAndTimeline();
+                }
+            } 
+            // Handle text input changes
+            else if (event.target.type === 'text') {
+                if (event.target.placeholder === 'Filter expression') {
+                    // Update filter expression
+                    tabList[currentLogType].logData.filters[index].expression = event.target.value;
+                    updateFilterMatchingList(index);
+                    updateDisplayAndTimeline();
+                } else if (event.target.placeholder === 'Filter label') {
+                    // Update filter label
+                    tabList[currentLogType].logData.filters[index].label = event.target.value;
+                    updateDisplayAndTimeline();
+                }
+            } 
+            // Handle color input changes
+            else if (event.target.type === 'color') {
+                // Update filter color
+                tabList[currentLogType].logData.filters[index].color = event.target.value;
+                updateDisplayAndTimeline();
             }
-        };
+        }
+
+        function addEventListener(tabList) {
+            Object.keys(tabList).forEach(tabName => {
+                const filterId = tabName.toLowerCase() + 'Filters';
+                const filterElement = document.getElementById(filterId);
+                
+                if (filterElement) {
+                    filterElement.addEventListener('change', (event) => onFilterChange(event, tabName));
+                } else {
+                    console.warn(`Element with id '${filterId}' not found.`);
+                }
+
+                const fileInputId = tabName.toLowerCase() + 'FileInput';
+                const fileInputIdElement = document.getElementById(fileInputId);
+                if (fileInputIdElement) {
+                    fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
+                    fileInputIdElement.addEventListener('click', function(event) {
+                        event.target.value = null;
+                    });
+                } else {
+                    console.warn(`Element with id '${fileInputId}' not found.`);
+                }
+
+                initializeTimelineInteractions(tabName);
+            });
+        }
 
         // Function to populate the preset filter set dropdown
         function populatePresetFilterSets() {
@@ -482,7 +495,7 @@
             // Creates an option for each preset filter set
             const dropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
             dropdown.innerHTML = '<option value="">Select a preset filter set</option>';
-            Object.keys(presetFilterSets[currentLogType]).forEach((setName) => {
+            Object.keys(tabList[currentLogType].presetFilter).forEach((setName) => {
                 const option = document.createElement('option');
                 option.value = setName;
                 option.textContent = setName;
@@ -497,14 +510,14 @@
             // Adds all filters from the selected set to the active filters
             // Updates the UI, including filter rendering and log display
             // Resets the dropdown selection after adding filters
-            if (!logData[currentLogType].isLogFileLoaded) return;
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const setDropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
             const setName = setDropdown.value;
 
             if (setName) {
                 // Add all filters from the selected set
-                presetFilterSets[currentLogType][setName].forEach(filter => {
-                    logData[currentLogType].filters.push({...filter, checked: true});
+                tabList[currentLogType].presetFilter[setName].forEach(filter => {
+                    tabList[currentLogType].logData.filters.push({...filter, checked: true});
                 });
                 renderFilters();
                 updateMatchingList();
@@ -513,21 +526,20 @@
             }
         }
 
-
         // This function is triggered when a file is selected in the input
         function loadLogFile(event, logType) {
             const file = event.target.files[0];
             if (!file) return;
 
-            logData[currentLogType].logFileName = file.name;
+            tabList[currentLogType].logData.logFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
-                logData[currentLogType].logLines = e.target.result.split('\n');
+                tabList[currentLogType].logData.logLines = e.target.result.split('\n');
                 updateLogFileInfo();
-                if (!logData[currentLogType].isLogFileLoaded) {
+                if (!tabList[currentLogType].logData.isLogFileLoaded) {
                     activateFilters();
                 }
-                logData[currentLogType].isLogFileLoaded = true;
+                tabList[currentLogType].logData.isLogFileLoaded = true;
                 updateMatchingList();
                 updateDisplayAndTimeline();
                 toggleContainers();
@@ -539,7 +551,7 @@
         function toggleContainers() {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
-            if (logData[currentLogType].isLogFileLoaded) {
+            if (tabList[currentLogType].logData.isLogFileLoaded) {
                 filterContainer.classList.remove('disabled-container');
                 timelineContainer.classList.remove('disabled-container');
             } else {
@@ -578,17 +590,17 @@
         }
 
         function insertIntoMatchingList(entry) {
-            const index = binarySearchWithIndex(logData[currentLogType].matchingList, entry);
-            logData[currentLogType].matchingList.splice(index, 0, entry);
+            const index = binarySearchWithIndex(tabList[currentLogType].logData.matchingList, entry);
+            tabList[currentLogType].logData.matchingList.splice(index, 0, entry);
         }
 
         // Function to update the list of log lines matching the filters
         function updateMatchingList() {
-            logData[currentLogType].matchingList = [];
-            for (let [lineIndex, line] of logData[currentLogType].logLines.entries()) {
-                let [timestampStr, timestamp] = parseTimestamp(line);
+            tabList[currentLogType].logData.matchingList = [];
+            for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
+                let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
-                for (let [filterIndex, filter] of logData[currentLogType].filters.entries()) {
+                for (let [filterIndex, filter] of tabList[currentLogType].logData.filters.entries()) {
                     if (evaluateFilter(line, filter)) {
                         insertIntoMatchingList({
                             timestamp,
@@ -603,15 +615,15 @@
         }
 
         function displayLogContent() {
-            if (!logData[currentLogType].isLogFileLoaded) return;
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const logContentContainer = document.getElementById(`${currentLogType.toLowerCase()}LogContent`);
             logContentContainer.innerHTML = '';
-            for (let entry of logData[currentLogType].matchingList) {
-                if (logData[currentLogType].filters[entry.filterIndex].checked) {
+            for (let entry of tabList[currentLogType].logData.matchingList) {
+                if (tabList[currentLogType].logData.filters[entry.filterIndex].checked) {
                     const lineElement = document.createElement('div');
                     const timestamp = entry.timestampStr;
                     const logText = escapeHtml(entry.line.replace(entry.timestampStr, ''));
-                    lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${logData[currentLogType].filters[entry.filterIndex].color}">[${logData[currentLogType].filters[entry.filterIndex].label}]</span> ${logText}`;
+                    lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${tabList[currentLogType].logData.filters[entry.filterIndex].color}">[${tabList[currentLogType].logData.filters[entry.filterIndex].label}]</span> ${logText}`;
                     lineElement.style.color = 'black';
                     lineElement.classList.add('log-line');
                     lineElement.dataset.index = entry.index;
@@ -638,7 +650,7 @@
         // Function to update the displayed log file information
         function updateLogFileInfo() {
             const logFileInfo = document.getElementById(`${currentLogType.toLowerCase()}LogFileInfo`);
-            logFileInfo.textContent = `Loaded ${currentLogType.toLowerCase()} log file: ${logData[currentLogType].logFileName}`;
+            logFileInfo.textContent = `Loaded ${currentLogType.toLowerCase()} log file: ${tabList[currentLogType].logData.logFileName}`;
         }
 
         // Function to update the displayed filter file information
@@ -653,7 +665,7 @@
             // Get the timeline container element
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             // Check if there are log lines and log events
-            if (logData[currentLogType].logLines.length > 0 && logData[currentLogType].logEvents.length > 0) {
+            if (tabList[currentLogType].logData.logLines.length > 0 && tabList[currentLogType].logData.logEvents.length > 0) {
                 // If both are present, show the timeline container
                 timelineContainer.style.display = 'block';
             } else {
@@ -689,8 +701,8 @@
 
         // Function to add a new filter to the interface
         function addFilter() {
-            if (!logData[currentLogType].isLogFileLoaded) return;
-            logData[currentLogType].filters.push({
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
+            tabList[currentLogType].logData.filters.push({
                 checked: true,
                 expression: '',
                 color: '#' + Math.floor(Math.random()*16777215).toString(16),
@@ -705,10 +717,10 @@
 
         // Function to remove a filter from the interface
         function removeFilter(button) {
-            if (!logData[currentLogType].isLogFileLoaded) return;
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const filterDiv = button.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            logData[currentLogType].filters.splice(index, 1);
+            tabList[currentLogType].logData.filters.splice(index, 1);
             renderFilters();
             updateMatchingList();
             updateDisplayAndTimeline();
@@ -718,7 +730,7 @@
         async function exportFilters() {
             try {
                 // Prepare filters for export, escaping regex expressions
-                const filtersToExport = logData[currentLogType].filters.map(filter => ({
+                const filtersToExport = tabList[currentLogType].logData.filters.map(filter => ({
                     ...filter,
                     // Escape regex expressions to prevent issues when importing
                     expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression
@@ -774,9 +786,9 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 // Parse the JSON data
-                logData[currentLogType].filters = JSON.parse(e.target.result);
+                tabList[currentLogType].logData.filters = JSON.parse(e.target.result);
                 // Unescape regex strings
-                logData[currentLogType].filters.forEach(filter => {
+                tabList[currentLogType].logData.filters.forEach(filter => {
                     if (filter.isRegex) {
                         filter.expression = unescapeRegex(filter.expression);
                     }
@@ -800,7 +812,7 @@
         function renderFilters() {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}Filters`);
             filterContainer.innerHTML = '';
-            for (let filter of logData[currentLogType].filters) {
+            for (let filter of tabList[currentLogType].logData.filters) {
                 const filterDiv = document.createElement('div');
                 filterDiv.classList.add('filter-container');
                 filterDiv.innerHTML = `
@@ -831,80 +843,6 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // Function to parse timestamp from a log line
-        function parseTimestamp(line) {
-            let match;
-            if (currentLogType === 'Framework') {
-                match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
-                if (match) {
-                    const [, timestamp] = match;
-                    const [date, time] = timestamp.split(' ');
-                    const [month, day] = date.split('-');
-                    const [hour, minute, secondWithMs] = time.split(':');
-                    const [second, ms] = secondWithMs.split('.');
-                    return [timestamp, new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms)];
-                }
-            } else if (currentLogType === 'Kernel' || currentLogType === 'Tracepoint') {
-                match = line.match(/\b\d+\.\d+\b/);
-                if (match) {
-                    const [timestamp, ] = match;
-                    return [timestamp, parseFloat(timestamp)];
-                }
-            } else if (currentLogType === 'Driver') {
-                match = line.match(/\[(\d+\.\d+)\]/);
-                if (match) {
-                    const [, timestamp] = match;
-                    return [timestamp, parseFloat(timestamp)];
-                }
-            } else if (currentLogType === 'UDI') {
-                match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
-                if (match) {
-                    // Split the string into date and time parts
-                    const [timestamp, ] = match;
-                    const [datePart, timePart] = timestamp.split('-');
-                    // Split the date part into year, month, day
-                    const [year, month, day] = datePart.split('/');
-                    // Split the time part into hours, minutes, seconds (and milliseconds)
-                    const [time, milliseconds] = timePart.split('.');
-                    const [hours, minutes, seconds] = time.split(':');
-                    // Create a new Date object
-                    // Note: months in JavaScript Date are 0-indexed, so we subtract 1 from the month
-                    return [timestamp, new Date(year, month - 1, day, hours, minutes, seconds, milliseconds)];
-                }
-            }
-            return [null, ""];
-        }
-
-        function timestampLength(line) {
-            let match;
-            if (currentLogType === 'Framework') {
-                match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
-                if (match) {
-                    const [, timestamp] = match;
-                    return timestamp.length;
-                }
-            } else if (currentLogType === 'Kernel') {
-                match = line.match(/^\[(\d+\.\d+)\]/);
-                if (match) {
-                    const [, timestamp] = match;
-                    return timestamp.length + 2;
-                }
-            } else if (currentLogType === 'UDI') {
-                match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
-                if (match) {
-                    const [timestamp, ] = match;
-                    return timestamp.length;
-                }
-            } else if (currentLogType === 'Tracepoint') {
-                match = line.match(/\b\d+\.\d+\b/);
-                if (match) {
-                    const [timestamp, ] = match;
-                    return timestamp.length;
-                }
-            }
-            return 0;
-        }
-
         function openLogType(evt, logType) {
             var i, tabcontent, tablinks;
 
@@ -929,9 +867,16 @@
         function updateUIForCurrentLogType() {
             updateLogFileInfo();
             renderFilters();
-            if (logData[currentLogType].isLogFileLoaded) {
+            if (tabList[currentLogType].logData.isLogFileLoaded) {
                 updateDisplayAndTimeline();
             }
+        }
+
+        // Helper function to format time elapsed in seconds and milliseconds
+        function formatTimeElapsed(timeElapsed) {
+            const seconds = Math.floor(timeElapsed / 1000);
+            const milliseconds = timeElapsed % 1000;
+            return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         }
 
         // Function to draw the timeline on the canvas
@@ -939,8 +884,8 @@
             let container = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             let canvas = document.getElementById(`${currentLogType.toLowerCase()}TimelineCanvas`);
             let ctx = canvas.getContext('2d');
-            if (logData[currentLogType].logEvents.length === 0) return;
-            canvas.width = Math.max(container.clientWidth, logData[currentLogType].logEvents.length * eventSpacing);
+            if (tabList[currentLogType].logData.logEvents.length === 0) return;
+            canvas.width = Math.max(container.clientWidth, tabList[currentLogType].logData.logEvents.length * eventSpacing);
             canvas.height = 300;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
@@ -948,8 +893,8 @@
             ctx.lineTo(canvas.width, canvas.height / 2);
             ctx.stroke();
             ctx.font = '10px Arial';
-            for (let i = 0; i < logData[currentLogType].logEvents.length; i++) {
-                const event = logData[currentLogType].logEvents[i];
+            for (let i = 0; i < tabList[currentLogType].logData.logEvents.length; i++) {
+                const event = tabList[currentLogType].logData.logEvents[i];
                 const x = i * eventSpacing + (eventSpacing / 2);
                 ctx.fillStyle = event.color;
                 ctx.beginPath();
@@ -958,10 +903,7 @@
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 + 10);
                 ctx.rotate(Math.PI / 4);
-                if (currentLogType === "Framework" || currentLogType === "UDI")
-                    ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
-                else if (currentLogType === "Kernel" || currentLogType === "Driver" || currentLogType === "Tracepoint")
-                    ctx.fillText(event.timestamp, 0, 0);
+                tabList[currentLogType].fillTimestamp(ctx, event);
                 ctx.restore();
                 ctx.save();
                 ctx.translate(x, canvas.height / 2 - 10);
@@ -969,7 +911,7 @@
                 ctx.fillText(event.label, 0, 0);
                 ctx.restore();
                 if (i > 0) {
-                    const prevEvent = logData[currentLogType].logEvents[i - 1];
+                    const prevEvent = tabList[currentLogType].logData.logEvents[i - 1];
                     const timeElapsed = event.timestamp - prevEvent.timestamp;
                     const timeElapsedStr = formatTimeElapsed(timeElapsed);
                     ctx.save();
@@ -979,13 +921,6 @@
                     ctx.restore();
                 }
             }
-        }
-
-        // Helper function to format time elapsed in seconds and milliseconds
-        function formatTimeElapsed(timeElapsed) {
-            const seconds = Math.floor(timeElapsed / 1000);
-            const milliseconds = timeElapsed % 1000;
-            return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         }
 
         // Function to highlight a specific log line
@@ -1007,14 +942,14 @@
         // Function to update the matching list for a specific filter
         function updateFilterMatchingList(filterIndex) {
             // Remove existing entries for this filter
-            logData[currentLogType].matchingList = logData[currentLogType].matchingList.filter(entry => entry.filterIndex !== filterIndex);
+            tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== filterIndex);
             // Iterate through all log lines
-            for (let [lineIndex, line] of logData[currentLogType].logLines.entries()) {
+            for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 // Parse timestamp from the log line
                 let [timestampStr, timestamp] = parseTimestamp(line);
                 if (timestamp === "") continue; // Skip lines without a valid timestamp
                 // If the line matches the filter, add it to the matching list
-                if (evaluateFilter(line, logData[currentLogType].filters[filterIndex])) {
+                if (evaluateFilter(line, tabList[currentLogType].logData.filters[filterIndex])) {
                     insertIntoMatchingList({
                         timestamp,
                         timestampStr,
@@ -1034,13 +969,13 @@
 
         // Function to update log events based on the matching list and active filters
         function updateLogEvents() {
-            logData[currentLogType].logEvents = logData[currentLogType].matchingList.filter(entry => logData[currentLogType].filters[entry.filterIndex].checked)
+            tabList[currentLogType].logData.logEvents = tabList[currentLogType].logData.matchingList.filter(entry => tabList[currentLogType].logData.filters[entry.filterIndex].checked)
                 .map(entry => ({
                     timestamp: entry.timestamp,
-                    color: logData[currentLogType].filters[entry.filterIndex].color,
+                    color: tabList[currentLogType].logData.filters[entry.filterIndex].color,
                     index: entry.index,
                     filterIndex: entry.filterIndex,
-                    label: logData[currentLogType].filters[entry.filterIndex].label
+                    label: tabList[currentLogType].logData.filters[entry.filterIndex].label
                 }));
         }
 
@@ -1074,8 +1009,8 @@
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const clickedIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
-                if (clickedIndex >= 0 && clickedIndex < logData[currentLogType].logEvents.length) {
-                    highlightLogLine(logData[currentLogType].logEvents[clickedIndex].index);
+                if (clickedIndex >= 0 && clickedIndex < tabList[currentLogType].logData.logEvents.length) {
+                    highlightLogLine(tabList[currentLogType].logData.logEvents[clickedIndex].index);
                 }
             });
             // Event listener for showing tooltip on hover
@@ -1083,8 +1018,8 @@
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const hoverIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
-                if (hoverIndex >= 0 && hoverIndex < logData[currentLogType].logEvents.length) {
-                    const logLine = logData[currentLogType].logLines[logData[currentLogType].logEvents[hoverIndex].index];
+                if (hoverIndex >= 0 && hoverIndex < tabList[currentLogType].logData.logEvents.length) {
+                    const logLine = tabList[currentLogType].logData.logLines[tabList[currentLogType].logData.logEvents[hoverIndex].index];
                     tooltip.style.display = 'block';
                     tooltip.style.left = (event.pageX  + 10) + 'px';
                     tooltip.style.top = (event.pageY + 10) + 'px';
@@ -1109,84 +1044,10 @@
             });
         }
 
-        function onFilterChange(event) {
-            // Exit if no log file is loaded
-            if (!logData[currentLogType].isLogFileLoaded) return;
-            // Find the filter container and its index
-            const filterDiv = event.target.closest('.filter-container');
-            const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            // Handle checkbox changes
-            if (event.target.type === 'checkbox') {
-                // Check if it's not the regex toggle
-                if (!event.target.closest('.toggle-switch')) {
-                    // Update filter's checked status
-                    logData[currentLogType].filters[index].checked = event.target.checked;
-                    updateDisplayAndTimeline();
-                } else {
-                    // Handle regex toggle
-                    logData[currentLogType].filters[index].isRegex = event.target.checked;
-                    updateFilterMatchingList(index);
-                    updateDisplayAndTimeline();
-                }
-            } 
-            // Handle text input changes
-            else if (event.target.type === 'text') {
-                if (event.target.placeholder === 'Filter expression') {
-                    // Update filter expression
-                    logData[currentLogType].filters[index].expression = event.target.value;
-                    updateFilterMatchingList(index);
-                    updateDisplayAndTimeline();
-                } else if (event.target.placeholder === 'Filter label') {
-                    // Update filter label
-                    logData[currentLogType].filters[index].label = event.target.value;
-                    updateDisplayAndTimeline();
-                }
-            } 
-            // Handle color input changes
-            else if (event.target.type === 'color') {
-                // Update filter color
-                logData[currentLogType].filters[index].color = event.target.value;
-                updateDisplayAndTimeline();
-            }
-        }
-
-        // Event listener for changes in the filters container
-        document.getElementById('frameworkFilters').addEventListener('change', (event) => onFilterChange(event));
-        document.getElementById('kernelFilters').addEventListener('change', (event) => onFilterChange(event));
-        document.getElementById('driverFilters').addEventListener('change', (event) => onFilterChange(event));
-        document.getElementById('udiFilters').addEventListener('change', (event) => onFilterChange(event));
-        document.getElementById('tracepointFilters').addEventListener('change', (event) => onFilterChange(event));
-
-        // Event listeners
-        document.getElementById('frameworkFileInput').addEventListener('change', (event) => loadLogFile(event, 'Framework'));
-        document.getElementById('kernelFileInput').addEventListener('change', (event) => loadLogFile(event, 'Kernel'));
-        document.getElementById('driverFileInput').addEventListener('change', (event) => loadLogFile(event, 'Driver'));
-        document.getElementById('udiFileInput').addEventListener('change', (event) => loadLogFile(event, 'UDI'));
-        document.getElementById('tracepointFileInput').addEventListener('change', (event) => loadLogFile(event, 'Tracepoint'));
-
-        // Reset file input value when clicked
-        document.getElementById('frameworkFileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-        document.getElementById('kernelFileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-        document.getElementById('driverFileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-        document.getElementById('udiFileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-        document.getElementById('tracepointFileInput').addEventListener('click', function(event) {
-            event.target.value = null;
-        });
-
-        // Initialize timeline interactions
-        initializeTimelineInteractions('Framework');
-        initializeTimelineInteractions('Kernel');
-        initializeTimelineInteractions('Driver');
-        initializeTimelineInteractions('UDI');
-        initializeTimelineInteractions('Tracepoint');
+        rendorTab(tabList);
+        rendorTabContent(tabList);
+        initializeLogData(tabList);
+        addEventListener(tabList);
 
         // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
