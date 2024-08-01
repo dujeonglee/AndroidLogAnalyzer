@@ -216,7 +216,12 @@
     <div id="tooltip"></div>
 
     <script>
-        // Tab list
+        /** Tab list
+         * Key: Tab name
+         * presetFilter: preset filter
+         * parseTimestamp: parse timestamp for different logs
+         * fillTimestamp: fill timestamp in timeline graph
+         */
         const tabList = {
             Framework: {
                 presetFilter: {
@@ -227,6 +232,7 @@
                         {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
                     ]
                 },
+                rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
                     let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
                     if (match) {
@@ -250,6 +256,7 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
                     ]
                 },
+                rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
                     let match = line.match(/\b\d+\.\d+\b/);
                     if (match) {
@@ -269,6 +276,7 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
                     ]
                 },
+                rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
                     match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
@@ -288,6 +296,7 @@
                         {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
                     ]
                 },
+                rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
                     match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
                     if (match) {
@@ -316,26 +325,13 @@
                         {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
                     ]
                 },
+                rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
                     let match = line.match(/\b\d+\.\d+\b/);
                     if (match) {
                         const [timestamp, ] = match;
                         return [timestamp, parseFloat(timestamp)];
                     }
-                    return [null, ""];
-                },
-                fillTimestamp: function(ctx, event) {
-                    ctx.fillText(event.timestamp, 0, 0);
-                }
-            },
-            TestTab: {
-                presetFilter: {
-                    // Array of predefined filters for Framework logs
-                    'TCP probe': [
-                        {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
-                    ]
-                },
-                parseTimestamp: function(line) {
                     return [null, ""];
                 },
                 fillTimestamp: function(ctx, event) {
@@ -351,7 +347,7 @@
         let lastMouseX;         // Last recorded mouse X position for dragging
 
         // Rendoring tab
-        function rendorTab(tabList) {
+        function rendorTabs(tabList) {
             // Get the div element with class "tab"
             const tabDiv = document.querySelector('.tab');
             // Loop through the tabList and create buttons
@@ -369,43 +365,47 @@
             })
         }
 
-        // Rendoring tab contents
-        function rendorTabContent(tabList) {
+        function rendorTabContent(tabName) {
             const body = document.body;
+            const tabContent = document.createElement('div');
 
+            tabContent.id = tabName;
+            tabContent.className = 'tabcontent';
+
+            tabContent.innerHTML = `
+                <h2>${tabName} Log Analysis</h2>
+                <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                    <h2>Filters</h2>
+                    <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                        <option value="">Select a preset filter set</option>
+                    </select>
+                    <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                    <button onclick="addFilter()">Add Filter</button>
+                    <button onclick="exportFilters()">Export Filters</button>
+                    <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                    <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                    <br><br>
+                    <div id="${tabName.toLowerCase()}Filters"></div>
+                </div>
+                <br>
+                <h2>Timeline</h2>
+                <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                    <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                </div>
+                <br>
+                <h2>Log</h2>
+                <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+            `;
+
+            body.appendChild(tabContent);
+        }
+
+        // Rendoring tab contents
+        function rendorTabContents(tabList) {
             Object.keys(tabList).forEach(tabName => {
-                const tabContent = document.createElement('div');
-                tabContent.id = tabName;
-                tabContent.className = 'tabcontent';
-
-                tabContent.innerHTML = `
-                    <h2>${tabName} Log Analysis</h2>
-                    <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
-                    <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                    <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
-                        <h2>Filters</h2>
-                        <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                            <option value="">Select a preset filter set</option>
-                        </select>
-                        <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                        <button onclick="addFilter()">Add Filter</button>
-                        <button onclick="exportFilters()">Export Filters</button>
-                        <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                        <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                        <br><br>
-                        <div id="${tabName.toLowerCase()}Filters"></div>
-                    </div>
-                    <br>
-                    <h2>Timeline</h2>
-                    <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
-                        <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
-                    </div>
-                    <br>
-                    <h2>Log</h2>
-                    <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
-                `;
-
-                body.appendChild(tabContent);
+                tabList[tabName].rendorTabContent(tabName)
             });
         }
 
@@ -463,7 +463,7 @@
             }
         }
 
-        function addEventListener(tabList) {
+        function addEventListeners(tabList) {
             Object.keys(tabList).forEach(tabName => {
                 const filterId = tabName.toLowerCase() + 'Filters';
                 const filterElement = document.getElementById(filterId);
@@ -946,7 +946,7 @@
             // Iterate through all log lines
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 // Parse timestamp from the log line
-                let [timestampStr, timestamp] = parseTimestamp(line);
+                let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestamp === "") continue; // Skip lines without a valid timestamp
                 // If the line matches the filter, add it to the matching list
                 if (evaluateFilter(line, tabList[currentLogType].logData.filters[filterIndex])) {
@@ -1039,15 +1039,15 @@
                 const wheel = event.deltaY < 0 ? 1 : -1;
                 const zoom = Math.exp(wheel * zoomIntensity);
                 eventSpacing *= zoom;
-                eventSpacing = Math.max(20, Math.min(200, eventSpacing)); // Limit zoom level
+                eventSpacing = Math.max(1, Math.min(200, eventSpacing)); // Limit zoom level
                 drawTimeline();
             });
         }
 
-        rendorTab(tabList);
-        rendorTabContent(tabList);
+        rendorTabs(tabList);
+        rendorTabContents(tabList);
         initializeLogData(tabList);
-        addEventListener(tabList);
+        addEventListeners(tabList);
 
         // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
