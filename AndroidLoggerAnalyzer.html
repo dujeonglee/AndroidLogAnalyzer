@@ -243,7 +243,7 @@
                         const [second, ms] = secondWithMs.split('.');
                         return [timestamp, new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms)];
                     }
-                    return [null, ""];
+                    return ["", null];
                 },
                 fillTimestamp: function(ctx, event) {
                     ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
@@ -258,12 +258,13 @@
                 },
                 rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
-                    let match = line.match(/\b\d+\.\d+\b/);
+                    match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
-                        const [timestamp, ] = match;
+                        console.log(match);
+                        const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
                     }
-                    return [null, ""];
+                    return ["", null];
                 },
                 fillTimestamp: function(ctx, event) {
                     ctx.fillText(event.timestamp, 0, 0);
@@ -278,12 +279,12 @@
                 },
                 rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
-                    match = line.match(/\[(\d+\.\d+)\]/);
+                    match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
                     if (match) {
                         const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
                     }
-                    return [null, ""];
+                    return ["", null];
                 },
                 fillTimestamp: function(ctx, event) {
                     ctx.fillText(event.timestamp, 0, 0);
@@ -312,7 +313,7 @@
                         // Note: months in JavaScript Date are 0-indexed, so we subtract 1 from the month
                         return [timestamp, new Date(year, month - 1, day, hours, minutes, seconds, milliseconds)];
                     }
-                    return [null, ""];
+                    return ["", null];
                 },
                 fillTimestamp: function(ctx, event) {
                     ctx.fillText(event.timestamp.toLocaleTimeString(), 0, 0);
@@ -332,7 +333,7 @@
                         const [timestamp, ] = match;
                         return [timestamp, parseFloat(timestamp)];
                     }
-                    return [null, ""];
+                    return ["", null];
                 },
                 fillTimestamp: function(ctx, event) {
                     ctx.fillText(event.timestamp, 0, 0);
@@ -343,7 +344,7 @@
         let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
 
         // Rendoring tab
-        function rendorTabs(tabList) {
+        const rendorTabs = (tabList) => {
             // Get the div element with class "tab"
             const tabDiv = document.querySelector('.tab');
             // Loop through the tabList and create buttons
@@ -399,13 +400,13 @@
         }
 
         // Rendoring tab contents
-        function rendorTabContents(tabList) {
+        const rendorTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].rendorTabContent(tabName)
             });
         }
 
-        function initializeLogData(tabList) {
+        const initializeLogData = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].logData = {
                     logLines: [],      // Array to store individual log lines
@@ -419,7 +420,7 @@
             });
         }
 
-        function onFilterChange(event) {
+        const onFilterChange = (event) => {
             // Exit if no log file is loaded
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             // Find the filter container and its index
@@ -460,7 +461,7 @@
             }
         }
 
-        function addEventListeners(tabList) {
+        const addEventListeners = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 const filterId = tabName.toLowerCase() + 'Filters';
                 const filterElement = document.getElementById(filterId);
@@ -487,7 +488,7 @@
         }
 
         // Function to populate the preset filter set dropdown
-        function populatePresetFilterSets() {
+        const populatePresetFilterSets = () => {
             // Dynamically populates the dropdown with options based on the current log type
             // Creates an option for each preset filter set
             const dropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
@@ -501,7 +502,7 @@
         }
 
         // Function to add selected preset filters to the active filter list
-        function addSelectedPresetFilters() {
+        const addSelectedPresetFilters = () => {
             // Checks if a log file is loaded
             // Retrieves the selected preset filter set
             // Adds all filters from the selected set to the active filters
@@ -524,7 +525,7 @@
         }
 
         // This function is triggered when a file is selected in the input
-        function loadLogFile(event, logType) {
+        const loadLogFile = (event, logType) => {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -545,7 +546,7 @@
         }
 
         // Function to enable containers
-        function toggleContainers() {
+        const toggleContainers = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             if (tabList[currentLogType].logData.isLogFileLoaded) {
@@ -557,7 +558,7 @@
             }
         }
 
-        function binarySearchWithIndex(arr, entry) {
+        const binarySearchWithIndex = (arr, entry) => {
             // Initialize search boundaries
             let low = 0;
             let high = arr.length;
@@ -586,13 +587,13 @@
             return low;
         }
 
-        function insertIntoMatchingList(entry) {
+        const insertIntoMatchingList = (entry) => {
             const index = binarySearchWithIndex(tabList[currentLogType].logData.matchingList, entry);
             tabList[currentLogType].logData.matchingList.splice(index, 0, entry);
         }
 
         // Function to update the list of log lines matching the filters
-        function updateMatchingList() {
+        const updateMatchingList = () => {
             tabList[currentLogType].logData.matchingList = [];
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
@@ -612,7 +613,7 @@
             adjustEventSpacing();
         }
 
-        function displayLogContent() {
+        const displayLogContent = () => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const logContentContainer = document.getElementById(`${currentLogType.toLowerCase()}LogContent`);
             logContentContainer.innerHTML = '';
@@ -636,7 +637,7 @@
         }
 
         // Function to activate the filter interface
-        function activateFilters() {
+        const activateFilters = () => {
             // Get the filter container element
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             // Add the 'active' class to show the filter interface
@@ -646,20 +647,20 @@
         }
 
         // Function to update the displayed log file information
-        function updateLogFileInfo() {
+        const updateLogFileInfo = () => {
             const logFileInfo = document.getElementById(`${currentLogType.toLowerCase()}LogFileInfo`);
             logFileInfo.textContent = `Loaded ${currentLogType.toLowerCase()} log file: ${tabList[currentLogType].logData.logFileName}`;
         }
 
         // Function to update the displayed filter file information
-        function updateFilterFileInfo() {
+        const updateFilterFileInfo = () => {
             const filterFileInfo = document.getElementById(`${currentLogType.toLowerCase()}FilterFileInfo`);
             // Update the text content with the name of the loaded filter file
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
         }
 
         // Function to toggle the visibility of the timeline container
-        function toggleTimelineVisibility() {
+        const toggleTimelineVisibility = () => {
             // Get the timeline container element
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             // Check if there are log lines and log events
@@ -673,7 +674,7 @@
         }
 
         // Function to evaluate if a line matches a given filter
-        function evaluateFilter(line, filter) {
+        const evaluateFilter = (line, filter) => {
             // If the filter expression is empty, return false (no match)
             if (filter.expression === "") return false;
             // Check if the filter is a regular expression
@@ -698,7 +699,7 @@
         }
 
         // Function to add a new filter to the interface
-        function addFilter() {
+        const addFilter = () => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             tabList[currentLogType].logData.filters.push({
                 checked: true,
@@ -714,7 +715,7 @@
 
 
         // Function to remove a filter from the interface
-        function removeFilter(button) {
+        const removeFilter = (button) => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const filterDiv = button.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
@@ -771,12 +772,12 @@
         }
 
         // Helper function to escape backslashes in regex strings
-        function escapeRegex(regex) {
+        const escapeRegex = (regex) => {
             return regex.replace(/\\/g, '\\\\');
         }
 
         // Function to import filters from a JSON file
-        function importFilters(event) {
+        const importFilters = (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -802,12 +803,12 @@
         }
 
         // Helper function to unescape backslashes in regex strings
-        function unescapeRegex(regex) {
+        const unescapeRegex = (regex) => {
             return regex.replace(/\\(.)/g, '$1');
         }
 
         // Function to render all filters in the UI
-        function renderFilters() {
+        const renderFilters = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}Filters`);
             filterContainer.innerHTML = '';
             for (let filter of tabList[currentLogType].logData.filters) {
@@ -832,7 +833,7 @@
         }
 
         // Helper function to escape HTML special characters
-        function escapeHtml(unsafe) {
+        const escapeHtml = (unsafe) => {
             return unsafe
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
@@ -841,7 +842,7 @@
                 .replace(/'/g, "&#039;");
         }
 
-        function openLogType(evt, logType) {
+        const openLogType = (evt, logType) => {
             var i, tabcontent, tablinks;
 
             currentLogType = logType;
@@ -862,7 +863,7 @@
         }
 
         // Function to update UI for the current log type
-        function updateUIForCurrentLogType() {
+        const updateUIForCurrentLogType = () => {
             updateLogFileInfo();
             renderFilters();
             if (tabList[currentLogType].logData.isLogFileLoaded) {
@@ -871,14 +872,14 @@
         }
 
         // Helper function to format time elapsed in seconds and milliseconds
-        function formatTimeElapsed(timeElapsed) {
+        const formatTimeElapsed = (timeElapsed) => {
             const seconds = Math.floor(timeElapsed / 1000);
             const milliseconds = timeElapsed % 1000;
             return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         }
 
         // Function to draw the timeline on the canvas
-        function drawTimeline() {
+        const drawTimeline = () => {
             let container = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             let canvas = document.getElementById(`${currentLogType.toLowerCase()}TimelineCanvas`);
             let ctx = canvas.getContext('2d');
@@ -922,7 +923,7 @@
         }
 
         // Function to highlight a specific log line
-        function highlightLogLine(index) {
+        const highlightLogLine = (index) => {
             const logContent = document.getElementById(`${currentLogType.toLowerCase()}LogContent`);
             const logLines = logContent.children;
             // Remove highlight from all lines
@@ -938,7 +939,7 @@
         }
 
         // Function to update the matching list for a specific filter
-        function updateFilterMatchingList(filterIndex) {
+        const updateFilterMatchingList = (filterIndex) => {
             // Remove existing entries for this filter
             tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== filterIndex);
             // Iterate through all log lines
@@ -961,13 +962,13 @@
         }
 
         // Function to update both the display and timeline
-        function updateDisplayAndTimeline() {
+        const updateDisplayAndTimeline = () => {
             updateLogEvents();
             displayLogContent();
         }
 
         // Function to update log events based on the matching list and active filters
-        function updateLogEvents() {
+        const updateLogEvents = () => {
             tabList[currentLogType].logData.logEvents = tabList[currentLogType].logData.matchingList.filter(entry => tabList[currentLogType].logData.filters[entry.filterIndex].checked)
                 .map(entry => ({
                     timestamp: entry.timestamp,
@@ -979,7 +980,7 @@
         }
 
         // Function to initialize timeline interactions
-        function initializeTimelineInteractions(logType) {
+        const initializeTimelineInteractions = (logType) => {
             const container = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
             const canvas = document.getElementById(`${logType.toLowerCase()}TimelineCanvas`);
             const tooltip = document.getElementById('tooltip');
@@ -1027,7 +1028,7 @@
             });
         }
 
-        function adjustEventSpacing() {
+        const adjustEventSpacing = () => {
             tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
         }
 
