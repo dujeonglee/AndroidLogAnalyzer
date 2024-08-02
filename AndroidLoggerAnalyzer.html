@@ -382,15 +382,12 @@
                     <button onclick="exportFilters()">Export Filters</button>
                     <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
                     <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                    <br><br>
                     <div id="${tabName.toLowerCase()}Filters"></div>
                 </div>
-                <br>
                 <h2>Timeline</h2>
                 <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                     <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                 </div>
-                <br>
                 <h2>Log</h2>
                 <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
             `;
@@ -466,7 +463,7 @@
                 const filterElement = document.getElementById(filterId);
                 
                 if (filterElement) {
-                    filterElement.addEventListener('change', (event) => onFilterChange(event, tabName));
+                    filterElement.addEventListener('change', (event) => onFilterChange(event));
                 } else {
                     console.warn(`Element with id '${filterId}' not found.`);
                 }
@@ -524,7 +521,7 @@
         }
 
         // This function is triggered when a file is selected in the input
-        const loadLogFile = (event, logType) => {
+        const loadLogFile = (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -945,7 +942,7 @@
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 // Parse timestamp from the log line
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
-                if (timestamp === "") continue; // Skip lines without a valid timestamp
+                if (timestampStr === "") continue; // Skip lines without a valid timestamp
                 // If the line matches the filter, add it to the matching list
                 if (evaluateFilter(line, tabList[currentLogType].logData.filters[filterIndex])) {
                     insertIntoMatchingList({
