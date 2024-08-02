@@ -260,7 +260,6 @@
                 parseTimestamp: function(line) {
                     let match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
-                        console.log(match);
                         const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
                     }
