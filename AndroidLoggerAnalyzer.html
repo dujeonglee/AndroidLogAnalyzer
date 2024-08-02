@@ -341,10 +341,6 @@
         }
         // Shared variables for application state
         let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
-        let eventSpacing = 80;  // Spacing between events in the timeline
-        let timelineOffset = 0; // Offset for timeline scrolling
-        let isDragging = false; // Flag to track if the timeline is being dragged
-        let lastMouseX;         // Last recorded mouse X position for dragging
 
         // Rendoring tab
         function rendorTabs(tabList) {
@@ -417,6 +413,7 @@
                     logEvents: [],     // Array to store parsed log events
                     matchingList: [],  // Array to store lines matching current filters
                     logFileName: '',   // Name of the loaded log file
+                    eventSpacing: 30,  // Spacing between events in the timeline
                     isLogFileLoaded: false // Flag to indicate if a log file is loaded
                 };
             });
@@ -612,6 +609,7 @@
                     }
                 }
             }
+            adjustEventSpacing();
         }
 
         function displayLogContent() {
@@ -885,7 +883,7 @@
             let canvas = document.getElementById(`${currentLogType.toLowerCase()}TimelineCanvas`);
             let ctx = canvas.getContext('2d');
             if (tabList[currentLogType].logData.logEvents.length === 0) return;
-            canvas.width = Math.max(container.clientWidth, tabList[currentLogType].logData.logEvents.length * eventSpacing);
+            canvas.width = Math.max(container.clientWidth, tabList[currentLogType].logData.logEvents.length * tabList[currentLogType].logData.eventSpacing);
             canvas.height = 300;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
@@ -895,7 +893,7 @@
             ctx.font = '10px Arial';
             for (let i = 0; i < tabList[currentLogType].logData.logEvents.length; i++) {
                 const event = tabList[currentLogType].logData.logEvents[i];
-                const x = i * eventSpacing + (eventSpacing / 2);
+                const x = i * tabList[currentLogType].logData.eventSpacing + (tabList[currentLogType].logData.eventSpacing / 2);
                 ctx.fillStyle = event.color;
                 ctx.beginPath();
                 ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
@@ -959,6 +957,7 @@
                     });
                 }
             }
+            adjustEventSpacing();
         }
 
         // Function to update both the display and timeline
@@ -987,28 +986,12 @@
             const timelineContainer = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
 
             timelineContainer.style.display = 'none';
-            // Event listener for starting drag
-            canvas.addEventListener('mousedown', function(event) {
-                isDragging = true;
-                lastMouseX = event.clientX;
-            });
-            // Event listener for dragging
-            document.addEventListener('mousemove', function(event) {
-                if (isDragging) {
-                    const deltaX = event.clientX - lastMouseX;
-                    container.scrollLeft -= deltaX;
-                    lastMouseX = event.clientX;
-                }
-            });
-            // Event listener for ending drag
-            document.addEventListener('mouseup', function() {
-                isDragging = false;
-            });
+
             // Event listener for clicking on timeline events
             canvas.addEventListener('click', function(event) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
-                const clickedIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
+                const clickedIndex = Math.floor((x - (tabList[currentLogType].logData.eventSpacing / 2)) / tabList[currentLogType].logData.eventSpacing);
                 if (clickedIndex >= 0 && clickedIndex < tabList[currentLogType].logData.logEvents.length) {
                     highlightLogLine(tabList[currentLogType].logData.logEvents[clickedIndex].index);
                 }
@@ -1017,7 +1000,7 @@
             canvas.addEventListener('mousemove', function(event) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
-                const hoverIndex = Math.floor((x - (eventSpacing / 2)) / eventSpacing);
+                const hoverIndex = Math.floor((x - (tabList[currentLogType].logData.eventSpacing / 2)) / tabList[currentLogType].logData.eventSpacing);
                 if (hoverIndex >= 0 && hoverIndex < tabList[currentLogType].logData.logEvents.length) {
                     const logLine = tabList[currentLogType].logData.logLines[tabList[currentLogType].logData.logEvents[hoverIndex].index];
                     tooltip.style.display = 'block';
@@ -1038,10 +1021,14 @@
                 const zoomIntensity = 0.1;
                 const wheel = event.deltaY < 0 ? 1 : -1;
                 const zoom = Math.exp(wheel * zoomIntensity);
-                eventSpacing *= zoom;
-                eventSpacing = Math.max(1, Math.min(200, eventSpacing)); // Limit zoom level
+                tabList[currentLogType].logData.eventSpacing *= zoom;
+                adjustEventSpacing();
                 drawTimeline();
             });
+        }
+
+        function adjustEventSpacing() {
+            tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
         }
 
         rendorTabs(tabList);
