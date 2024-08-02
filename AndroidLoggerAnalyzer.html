@@ -258,7 +258,7 @@
                 },
                 rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
-                    match = line.match(/\[(\d+\.\d+)\]/);
+                    let match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
                         console.log(match);
                         const [, timestamp] = match;
@@ -279,7 +279,7 @@
                 },
                 rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
-                    match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
+                    let match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
                     if (match) {
                         const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
@@ -299,7 +299,7 @@
                 },
                 rendorTabContent: rendorTabContent,
                 parseTimestamp: function(line) {
-                    match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
+                    let match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
                     if (match) {
                         // Split the string into date and time parts
                         const [timestamp, ] = match;
