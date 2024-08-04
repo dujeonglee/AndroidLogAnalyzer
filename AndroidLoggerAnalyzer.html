@@ -232,7 +232,9 @@
                         {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
                     ]
                 },
-                rendorTabContent: rendorTabContent,
+                rendorTabContent: rendorFilterTabContent,
+                initializeLogData: initializeFilterLogData,
+                addEventListener: addFilterEventListener,
                 parseTimestamp: function(line) {
                     let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
                     if (match) {
@@ -256,7 +258,9 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
                     ]
                 },
-                rendorTabContent: rendorTabContent,
+                rendorTabContent: rendorFilterTabContent,
+                initializeLogData: initializeFilterLogData,
+                addEventListener: addFilterEventListener,
                 parseTimestamp: function(line) {
                     let match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
@@ -276,7 +280,9 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
                     ]
                 },
-                rendorTabContent: rendorTabContent,
+                rendorTabContent: rendorFilterTabContent,
+                initializeLogData: initializeFilterLogData,
+                addEventListener: addFilterEventListener,
                 parseTimestamp: function(line) {
                     let match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
                     if (match) {
@@ -296,7 +302,9 @@
                         {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
                     ]
                 },
-                rendorTabContent: rendorTabContent,
+                rendorTabContent: rendorFilterTabContent,
+                initializeLogData: initializeFilterLogData,
+                addEventListener: addFilterEventListener,
                 parseTimestamp: function(line) {
                     let match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
                     if (match) {
@@ -325,7 +333,9 @@
                         {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
                     ]
                 },
-                rendorTabContent: rendorTabContent,
+                rendorTabContent: rendorFilterTabContent,
+                initializeLogData: initializeFilterLogData,
+                addEventListener: addFilterEventListener,
                 parseTimestamp: function(line) {
                     let match = line.match(/\b\d+\.\d+\b/);
                     if (match) {
@@ -343,7 +353,7 @@
         let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
 
         // Rendoring tab
-        const rendorTabs = (tabList) => {
+        const rendorAllTabs = (tabList) => {
             // Get the div element with class "tab"
             const tabDiv = document.querySelector('.tab');
             // Loop through the tabList and create buttons
@@ -361,7 +371,7 @@
             })
         }
 
-        function rendorTabContent(tabName) {
+        function rendorFilterTabContent(tabName) {
             const body = document.body;
             const tabContent = document.createElement('div');
 
@@ -396,23 +406,27 @@
         }
 
         // Rendoring tab contents
-        const rendorTabContents = (tabList) => {
+        const rendorAllTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
-                tabList[tabName].rendorTabContent(tabName)
+                tabList[tabName].rendorTabContent(tabName);
             });
         }
 
-        const initializeLogData = (tabList) => {
+        function initializeFilterLogData(tabName) {
+            tabList[tabName].logData = {
+                logLines: [],      // Array to store individual log lines
+                filters: [],       // Array to store active filters
+                logEvents: [],     // Array to store parsed log events
+                matchingList: [],  // Array to store lines matching current filters
+                logFileName: '',   // Name of the loaded log file
+                eventSpacing: 30,  // Spacing between events in the timeline
+                isLogFileLoaded: false // Flag to indicate if a log file is loaded
+            };
+        }
+
+        const initializeAllLogData = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
-                tabList[tabName].logData = {
-                    logLines: [],      // Array to store individual log lines
-                    filters: [],       // Array to store active filters
-                    logEvents: [],     // Array to store parsed log events
-                    matchingList: [],  // Array to store lines matching current filters
-                    logFileName: '',   // Name of the loaded log file
-                    eventSpacing: 30,  // Spacing between events in the timeline
-                    isLogFileLoaded: false // Flag to indicate if a log file is loaded
-                };
+                tabList[tabName].initializeLogData(tabName);
             });
         }
 
@@ -457,29 +471,33 @@
             }
         }
 
-        const addEventListeners = (tabList) => {
+        function addFilterEventListener(tabName) {
+            const filterId = tabName.toLowerCase() + 'Filters';
+            const filterElement = document.getElementById(filterId);
+
+            if (filterElement) {
+                filterElement.addEventListener('change', (event) => onFilterChange(event));
+            } else {
+                console.warn(`Element with id '${filterId}' not found.`);
+            }
+
+            const fileInputId = tabName.toLowerCase() + 'FileInput';
+            const fileInputIdElement = document.getElementById(fileInputId);
+            if (fileInputIdElement) {
+                fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
+                fileInputIdElement.addEventListener('click', function(event) {
+                    event.target.value = null;
+                });
+            } else {
+                console.warn(`Element with id '${fileInputId}' not found.`);
+            }
+
+            initializeTimelineInteractions(tabName);
+        }
+
+        const addAllEventListeners = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
-                const filterId = tabName.toLowerCase() + 'Filters';
-                const filterElement = document.getElementById(filterId);
-                
-                if (filterElement) {
-                    filterElement.addEventListener('change', (event) => onFilterChange(event));
-                } else {
-                    console.warn(`Element with id '${filterId}' not found.`);
-                }
-
-                const fileInputId = tabName.toLowerCase() + 'FileInput';
-                const fileInputIdElement = document.getElementById(fileInputId);
-                if (fileInputIdElement) {
-                    fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
-                    fileInputIdElement.addEventListener('click', function(event) {
-                        event.target.value = null;
-                    });
-                } else {
-                    console.warn(`Element with id '${fileInputId}' not found.`);
-                }
-
-                initializeTimelineInteractions(tabName);
+                tabList[tabName].addEventListener(tabName);
             });
         }
 
@@ -1028,10 +1046,10 @@
             tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
         }
 
-        rendorTabs(tabList);
-        rendorTabContents(tabList);
-        initializeLogData(tabList);
-        addEventListeners(tabList);
+        rendorAllTabs(tabList);
+        rendorAllTabContents(tabList);
+        initializeAllLogData(tabList);
+        addAllEventListeners(tabList);
 
         // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
