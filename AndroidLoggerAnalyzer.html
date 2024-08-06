@@ -232,6 +232,10 @@
                         {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
                     ]
                 },
+                openLogTypePost: function(){
+                    updateUIForCurrentLogType();
+                    populatePresetFilterSets();
+                },
                 rendorTabContent: rendorFilterTabContent,
                 initializeLogData: initializeFilterLogData,
                 addEventListener: addFilterEventListener,
@@ -258,6 +262,10 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
                     ]
                 },
+                openLogTypePost: function(){
+                    updateUIForCurrentLogType();
+                    populatePresetFilterSets();
+                },
                 rendorTabContent: rendorFilterTabContent,
                 initializeLogData: initializeFilterLogData,
                 addEventListener: addFilterEventListener,
@@ -280,6 +288,10 @@
                         {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
                     ]
                 },
+                openLogTypePost: function(){
+                    updateUIForCurrentLogType();
+                    populatePresetFilterSets();
+                },
                 rendorTabContent: rendorFilterTabContent,
                 initializeLogData: initializeFilterLogData,
                 addEventListener: addFilterEventListener,
@@ -301,6 +313,10 @@
                         {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "isRegex": false},
                         {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
                     ]
+                },
+                openLogTypePost: function(){
+                    updateUIForCurrentLogType();
+                    populatePresetFilterSets();
                 },
                 rendorTabContent: rendorFilterTabContent,
                 initializeLogData: initializeFilterLogData,
@@ -332,6 +348,10 @@
                     'TCP': [
                         {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
                     ]
+                },
+                openLogTypePost: function(){
+                    updateUIForCurrentLogType();
+                    populatePresetFilterSets();
                 },
                 rendorTabContent: rendorFilterTabContent,
                 initializeLogData: initializeFilterLogData,
@@ -871,9 +891,8 @@
             }
             document.getElementById(logType).style.display = "block";
             evt.currentTarget.className += " active";
-            updateUIForCurrentLogType();
-            populatePresetFilterSets();
             toggleContainers();
+            tabList[currentLogType].openLogTypePost();
         }
 
         // Function to update UI for the current log type
