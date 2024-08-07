@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log File Viewer</title>
@@ -214,7 +215,6 @@
 
     <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
-
     <script>
         /** Tab list
          * Key: Tab name
@@ -233,6 +233,7 @@
                     ]
                 },
                 openLogTypePost: function(){
+                    toggleContainers();
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
@@ -263,6 +264,7 @@
                     ]
                 },
                 openLogTypePost: function(){
+                    toggleContainers();
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
@@ -289,6 +291,7 @@
                     ]
                 },
                 openLogTypePost: function(){
+                    toggleContainers();
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
@@ -315,6 +318,7 @@
                     ]
                 },
                 openLogTypePost: function(){
+                    toggleContainers();
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
@@ -350,12 +354,49 @@
                     ]
                 },
                 openLogTypePost: function(){
-                    updateUIForCurrentLogType();
-                    populatePresetFilterSets();
+                    toggleTracepointContainers();
+                    renderGraphTypeSelection();
                 },
-                rendorTabContent: rendorFilterTabContent,
-                initializeLogData: initializeFilterLogData,
-                addEventListener: addFilterEventListener,
+                rendorTabContent: function(tabName) {
+                    const body = document.body;
+                    const tabContent = document.createElement('div');
+
+                    tabContent.id = tabName;
+                    tabContent.className = 'tabcontent';
+
+                    tabContent.innerHTML = `
+                        <h2>${tabName} Log Analysis</h2>
+                        <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                        <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                        <div id="${tabName.toLowerCase()}GraphTypeSelection" style="margin-top: 10px;"></div>
+                        <div id="${tabName.toLowerCase()}ChartContainer" style="display: none;"></div>
+                    `;
+
+                    body.appendChild(tabContent);
+                },
+                initializeLogData: function(tabName) {
+                    tabList[tabName].logData = {
+                        logLines: [],
+                        logFileName: '',
+                        isLogFileLoaded: false,
+                        parsedData: {},
+                        currentGraphType: ''
+                    };
+                },
+                addEventListener: function(tabName) {
+                    const fileInputId = tabName.toLowerCase() + 'FileInput';
+                    const fileInputIdElement = document.getElementById(fileInputId);
+                    if (fileInputIdElement) {
+                        fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
+                        fileInputIdElement.addEventListener('click', function(event) {
+                            event.target.value = null;
+                        });
+                    } else {
+                        console.warn(`Element with id '${fileInputId}' not found.`);
+                    }
+
+                    const graphTypeSelection = document.getElementById(`${tabName.toLowerCase()}GraphTypeSelection`);
+                },
                 parseTimestamp: function(line) {
                     let match = line.match(/\b\d+\.\d+\b/);
                     if (match) {
@@ -389,6 +430,244 @@
                 // Append the button to the tab div
                 tabDiv.appendChild(button);
             })
+        }
+
+        // Function to render graph type selection
+        function renderGraphTypeSelection() {
+            const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+
+            container.innerHTML = metrics.map(metric => `
+                <input type="checkbox" id="${metric}" name="graphType" value="${metric}" checked>
+                <label for="${metric}">${metric.replace(/_/g, ' ').toUpperCase()}</label><br>
+            `).join('');
+
+            // Add event listeners to checkboxes
+            metrics.forEach(metric => {
+                const checkbox = document.getElementById(metric);
+                checkbox.addEventListener('change', () => handleCheckboxChange(metric, checkbox.checked));
+            });
+
+            // Initialize selectedMetrics with all metrics
+            tabList[currentLogType].logData.selectedMetrics = [...metrics];
+        }
+
+        // Update the handleCheckboxChange function
+        function handleCheckboxChange(metric, isChecked) {
+            updateCharts();
+        }
+
+
+        // Function to add a graph
+        function addGraph(metric) {
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            const existingChart = chartContainer.querySelector(`[data-metric="${metric}"]`);
+            if (!existingChart) {
+                const chartDiv = document.createElement('div');
+                chartDiv.style.width = '100%';
+                chartDiv.style.height = '400px';
+                chartDiv.style.marginBottom = '20px';
+                chartDiv.setAttribute('data-metric', metric);
+                chartContainer.appendChild(chartDiv);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = chartDiv.clientWidth;
+                canvas.height = chartDiv.clientHeight;
+                chartDiv.appendChild(canvas);
+            }
+        }
+
+        // Function to remove a graph
+        function removeGraph(metric) {
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            const chartToRemove = chartContainer.querySelector(`[data-metric="${metric}"]`);
+            if (chartToRemove) {
+                chartContainer.removeChild(chartToRemove);
+            }
+        }
+
+        // Function to update charts based on selected metrics
+        function updateCharts() {
+            const selectedMetrics = Array.from(document.querySelectorAll('input[name="graphType"]:checked'))
+                .map(input => input.value);
+
+            tabList[currentLogType].logData.selectedMetrics = selectedMetrics;
+            displayTracepointChart();
+        }
+
+        function parseTracepointLog() {
+            const logData = tabList[currentLogType].logData;
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+
+            metrics.forEach(metric => {
+                logData.parsedData[metric] = [];
+            });
+
+            const socketData = {};
+
+            logData.logLines.forEach(line => {
+                const [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
+                if (timestampStr === "") return;
+
+                const data = extractDataFromLine(line);
+                if (data) {
+                    if (!socketData[data.socket_cookie]) {
+                        socketData[data.socket_cookie] = {
+                            time: [],
+                            outstanding_bytes: [],
+                            snd_cwnd: [],
+                            ssthresh: [],
+                            snd_wnd: [],
+                            rcv_wnd: [],
+                            srtt: []
+                        };
+                    }
+
+                    const socket = socketData[data.socket_cookie];
+                    socket.time.push(timestamp);
+                    if (data.snd_nxt < data.snd_una)
+                        data.snd_nxt += 0xffffffff;
+                    socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
+                    socket.snd_cwnd.push({x: timestamp, y: data.snd_cwnd});
+                    socket.ssthresh.push({x: timestamp, y: data.ssthresh});
+                    socket.snd_wnd.push({x: timestamp, y: data.snd_wnd});
+                    socket.rcv_wnd.push({x: timestamp, y: data.rcv_wnd});
+                    socket.srtt.push({x: timestamp, y: data.srtt});
+                }
+            });
+
+            // Populate logData.parsedData with the required format for all metrics
+            metrics.forEach(metric => {
+                logData.parsedData[metric] = Object.keys(socketData).map(socket_cookie => ({
+                    label: socket_cookie,
+                    data: socketData[socket_cookie][metric]
+                }));
+            });
+        }
+
+
+        // Function to extract data from a single log line
+        function extractDataFromLine(line) {
+            const regex = /snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
+            const match = line.match(regex);
+            if (match) {
+                return {
+                    snd_nxt: parseInt(match[1], 16),
+                    snd_una: parseInt(match[2], 16),
+                    snd_cwnd: parseInt(match[3]),
+                    ssthresh: parseInt(match[4]),
+                    snd_wnd: parseInt(match[5]),
+                    srtt: parseInt(match[6]),
+                    rcv_wnd: parseInt(match[7]),
+                    socket_cookie: match[8]  // Keep this as a string
+                };
+            }
+            return null;
+        }
+
+        // Function to display Tracepoint chart
+        function displayTracepointChart() {
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            const data = tabList[currentLogType].logData.parsedData;
+            const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
+
+            selectedMetrics.forEach(metric => {
+                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                if (!chartDiv) {
+                    chartDiv = document.createElement('div');
+                    chartDiv.style.width = '100%';
+                    chartDiv.style.height = '400px';
+                    chartDiv.style.marginBottom = '20px';
+                    chartDiv.setAttribute('data-metric', metric);
+                    chartContainer.appendChild(chartDiv);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = chartDiv.clientWidth;
+                    canvas.height = chartDiv.clientHeight;
+                    chartDiv.appendChild(canvas);
+                }
+
+                const canvas = chartDiv.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Prepare datasets for the chart
+                const datasets = data[metric].map((socketData, index) => ({
+                    label: `Socket ${socketData.label}`,
+                    data: socketData.data,
+                    borderColor: getColor(index),
+                    tension: 0.1
+                }));
+
+                // Create or update the chart
+                if (chartDiv.chart) {
+                    chartDiv.chart.data.datasets = datasets;
+                    chartDiv.chart.update();
+                } else {
+                    chartDiv.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: `${metric.replace(/_/g, ' ').toUpperCase()}`
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: {
+                                        display: true,
+                                        text: 'Time (seconds)'
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value.toFixed(2);
+                                        }
+                                    }
+                                },
+                                y: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    title: {
+                                        display: true,
+                                        text: 'Value'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Remove charts for unselected metrics
+            const allChartDivs = chartContainer.querySelectorAll('[data-metric]');
+            allChartDivs.forEach(div => {
+                const metric = div.getAttribute('data-metric');
+                if (!selectedMetrics.includes(metric)) {
+                    chartContainer.removeChild(div);
+                }
+            });
+        }
+
+
+
+        // Helper function to generate colors for different datasets
+        function getColor(index) {
+            const colors = [
+                'rgb(75, 192, 192)',
+                'rgb(255, 99, 132)',
+                'rgb(255, 205, 86)',
+                'rgb(54, 162, 235)',
+                'rgb(153, 102, 255)',
+                'rgb(255, 159, 64)'
+            ];
+            return colors[index % colors.length];
         }
 
         function rendorFilterTabContent(tabName) {
@@ -559,24 +838,44 @@
         }
 
         // This function is triggered when a file is selected in the input
-        const loadLogFile = (event) => {
+        const loadLogFile = (event, logType) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            tabList[currentLogType].logData.logFileName = file.name;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                tabList[currentLogType].logData.logLines = e.target.result.split('\n');
-                updateLogFileInfo();
-                if (!tabList[currentLogType].logData.isLogFileLoaded) {
-                    activateFilters();
-                }
-                tabList[currentLogType].logData.isLogFileLoaded = true;
-                updateMatchingList();
-                updateDisplayAndTimeline();
-                toggleContainers();
-            };
-            reader.readAsText(file);
+            if (logType === 'Tracepoint') {
+                tabList[logType].logData.logFileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tabList[logType].logData.logLines = e.target.result.split('\n');
+                    updateLogFileInfo();
+                    tabList[logType].logData.isLogFileLoaded = true;
+                    toggleTracepointContainers();
+                    // Enable graph type selection after log file is loaded
+                    document.getElementById(`${logType.toLowerCase()}GraphTypeSelection`).style.display = 'block';
+                    // Parse the log file once
+                    parseTracepointLog();
+                    // Render the graph type selection (all checked by default)
+                    renderGraphTypeSelection();
+                    // Display initial charts
+                    updateCharts();
+                };
+                reader.readAsText(file);
+            }else {
+                tabList[logType].logData.logFileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tabList[logType].logData.logLines = e.target.result.split('\n');
+                    updateLogFileInfo();
+                    if (!tabList[logType].logData.isLogFileLoaded) {
+                        activateFilters();
+                    }
+                    tabList[logType].logData.isLogFileLoaded = true;
+                    updateMatchingList();
+                    updateDisplayAndTimeline();
+                    toggleContainers();
+                };
+                reader.readAsText(file);
+            }
         }
 
         // Function to enable containers
@@ -589,6 +888,18 @@
             } else {
                 filterContainer.classList.add('disabled-container');
                 timelineContainer.classList.add('disabled-container');
+            }
+        }
+
+        function toggleTracepointContainers() {
+            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            if (tabList[currentLogType].logData.isLogFileLoaded) {
+                graphTypeSelection.style.display = 'block';
+                chartContainer.style.display = 'block';
+            } else {
+                graphTypeSelection.style.display = 'none';
+                chartContainer.style.display = 'none';
             }
         }
 
@@ -891,7 +1202,6 @@
             }
             document.getElementById(logType).style.display = "block";
             evt.currentTarget.className += " active";
-            toggleContainers();
             tabList[currentLogType].openLogTypePost();
         }
 
