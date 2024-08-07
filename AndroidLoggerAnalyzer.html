@@ -513,7 +513,6 @@
                 if (data) {
                     if (!socketData[data.socket_cookie]) {
                         socketData[data.socket_cookie] = {
-                            time: [],
                             outstanding_bytes: [],
                             snd_cwnd: [],
                             ssthresh: [],
@@ -524,7 +523,6 @@
                     }
 
                     const socket = socketData[data.socket_cookie];
-                    socket.time.push(timestamp);
                     if (data.snd_nxt < data.snd_una)
                         data.snd_nxt += 0xffffffff;
                     socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
