@@ -498,6 +498,7 @@
         function parseTracepointLog() {
             const logData = tabList[currentLogType].logData;
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+            const samplingInterval = 0.01;
 
             metrics.forEach(metric => {
                 logData.parsedData[metric] = [];
@@ -525,12 +526,18 @@
                     const socket = socketData[data.socket_cookie];
                     if (data.snd_nxt < data.snd_una)
                         data.snd_nxt += 0xffffffff;
-                    socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
-                    socket.snd_cwnd.push({x: timestamp, y: data.snd_cwnd});
-                    socket.ssthresh.push({x: timestamp, y: data.ssthresh});
-                    socket.snd_wnd.push({x: timestamp, y: data.snd_wnd});
-                    socket.rcv_wnd.push({x: timestamp, y: data.rcv_wnd});
-                    socket.srtt.push({x: timestamp, y: data.srtt});
+                    if (!socket.outstanding_bytes.length || timestamp - socket.outstanding_bytes[socket.outstanding_bytes.length-1].x >= samplingInterval)
+                        socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
+                    if (!socket.snd_cwnd.length || timestamp - socket.snd_cwnd[socket.snd_cwnd.length-1].x >= samplingInterval)
+                        socket.snd_cwnd.push({x: timestamp, y: data.snd_cwnd});
+                    if (data.ssthresh < 2147483647 && (!socket.ssthresh.length || timestamp - socket.ssthresh[socket.ssthresh.length-1].x >= samplingInterval))
+                        socket.ssthresh.push({x: timestamp, y: data.ssthresh});
+                    if (!socket.snd_wnd.length || timestamp - socket.snd_wnd[socket.snd_wnd.length-1].x >= samplingInterval)
+                        socket.snd_wnd.push({x: timestamp, y: data.snd_wnd});
+                    if (!socket.rcv_wnd.length || timestamp - socket.rcv_wnd[socket.rcv_wnd.length-1].x >= samplingInterval)
+                        socket.rcv_wnd.push({x: timestamp, y: data.rcv_wnd});
+                    if (!socket.srtt.length || timestamp - socket.srtt[socket.srtt.length-1].x >= samplingInterval)
+                        socket.srtt.push({x: timestamp, y: data.srtt});
                 }
             });
 
