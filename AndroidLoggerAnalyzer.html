@@ -382,7 +382,8 @@
                         logFileName: '',
                         isLogFileLoaded: false,
                         parsedData: {},
-                        currentGraphType: ''
+                        currentGraphType: '',
+                        chartLegendStatus: {}
                     };
                 },
                 addEventListener: function(tabName) {
@@ -625,12 +626,17 @@
                 const ctx = canvas.getContext('2d');
 
                 // Prepare datasets for the chart
-                const datasets = data[metric].map((socketData, index) => ({
-                    label: `Socket ${socketData.label}`,
-                    data: socketData.data,
-                    borderColor: getColor(index),
-                    tension: 0.0
-                }));
+                const datasets = data[metric].map((socketData, index) => {
+                    const datasetKey = `${metric}-${socketData.label}`;
+                    const hidden = tabList[currentLogType].logData.chartLegendStatus[datasetKey] !== undefined ? tabList[currentLogType].logData.chartLegendStatus[datasetKey] : false;
+                    return {
+                        label: `Socket ${socketData.label}`,
+                        data: socketData.data,
+                        borderColor: getColor(index),
+                        tension: 0.0,
+                        hidden: hidden
+                    };
+                });
 
                 // Create or update the chart
                 if (chartDiv.chart) {
@@ -649,6 +655,21 @@
                                 title: {
                                     display: true,
                                     text: `${metric.replace(/_/g, ' ').toUpperCase()}`
+                                },
+                                legend: {
+                                    onClick: (e, legendItem, legend) => {
+                                        const index = legendItem.datasetIndex;
+                                        const ci = legend.chart;
+                                        const meta = ci.getDatasetMeta(index);
+
+                                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+
+                                        // Update the legend status
+                                        const datasetKey = `${metric}-${ci.data.datasets[index].label.replace('Socket ', '')}`;
+                                        tabList[currentLogType].logData.chartLegendStatus[datasetKey] = meta.hidden;
+
+                                        ci.update();
+                                    }
                                 }
                             },
                             scales: {
@@ -688,8 +709,6 @@
                 }
             });
         }
-
-
 
         // Helper function to generate colors for different datasets
         function getColor(index) {
