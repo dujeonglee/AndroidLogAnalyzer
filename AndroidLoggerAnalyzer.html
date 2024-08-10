@@ -528,48 +528,48 @@
         function updateCharts() {
             const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            const chartDivs = chartContainer.querySelectorAll('[data-metric]');
+            const chartMap = new Map(Array.from(chartDivs).map(div => [div.getAttribute('data-metric'), div]));
 
             selectedMetrics.forEach(metric => {
-                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                let chartDiv = chartMap.get(metric);
                 if (!chartDiv) {
-                    addGraph(metric);
-                    chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                    chartDiv = document.createElement('div');
+                    chartDiv.style.cssText = 'width: 100%; height: 400px; margin-bottom: 20px;';
+                    chartDiv.setAttribute('data-metric', metric);
+                    const canvas = document.createElement('canvas');
+                    chartDiv.appendChild(canvas);
+                    chartContainer.appendChild(chartDiv);
+                    chartMap.set(metric, chartDiv);
                 }
 
                 const canvas = chartDiv.querySelector('canvas');
                 const ctx = canvas.getContext('2d');
 
-                // Prepare datasets for the chart
                 const datasets = tabList[currentLogType].logData.parsedData[metric].map((socketData, index) => {
                     const datasetKey = `${metric}-${socketData.label}`;
-                    const hidden = tabList[currentLogType].logData.chartLegendStatus[datasetKey] !== undefined ? tabList[currentLogType].logData.chartLegendStatus[datasetKey] : false;
                     return {
                         label: `Socket ${socketData.label}`,
                         data: socketData.data,
                         borderColor: getColor(index),
                         tension: 0.0,
-                        hidden: hidden
+                        hidden: tabList[currentLogType].logData.chartLegendStatus[datasetKey] || false
                     };
                 });
 
-                // Update existing chart or create a new one
                 if (chartDiv.chart) {
                     chartDiv.chart.data.datasets = datasets;
-                    chartDiv.chart.update('none');  // Use 'none' to prevent animation
+                    chartDiv.chart.update('none');
                 } else {
                     chartDiv.chart = createChart(ctx, datasets, metric);
                 }
 
-                // Show or hide the chart based on whether it's selected
-                chartDiv.style.display = selectedMetrics.includes(metric) ? 'block' : 'none';
+                chartDiv.style.display = 'block';
             });
 
-            // Remove charts for unselected metrics
-            const allChartDivs = chartContainer.querySelectorAll('[data-metric]');
-            allChartDivs.forEach(div => {
-                const metric = div.getAttribute('data-metric');
+            chartMap.forEach((chartDiv, metric) => {
                 if (!selectedMetrics.includes(metric)) {
-                    div.style.display = 'none';
+                    chartDiv.style.display = 'none';
                 }
             });
         }
@@ -634,68 +634,57 @@
             const logData = tabList[currentLogType].logData;
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
             const samplingInterval = logData.samplingInterval;
-
-            metrics.forEach(metric => {
-                logData.parsedData[metric] = [];
-            });
-
             const socketData = {};
 
-            logData.logLines.forEach(line => {
+            // Regex for extracting data (compile once)
+            const regex = /snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
+
+            logData.logLines.forEach((line, index) => {
                 const [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") return;
 
-                const data = extractDataFromLine(line);
-                if (data) {
-                    if (!socketData[data.socket_cookie]) {
-                        socketData[data.socket_cookie] = {
-                            outstanding_bytes: [],
-                            snd_cwnd: [],
-                            ssthresh: [],
-                            snd_wnd: [],
-                            rcv_wnd: [],
-                            srtt: []
-                        };
+                const match = line.match(regex);
+                if (match) {
+                    const [, snd_nxt, snd_una, snd_cwnd, ssthresh, snd_wnd, srtt, rcv_wnd, socket_cookie] = match;
+
+                    if (!socketData[socket_cookie]) {
+                        socketData[socket_cookie] = metrics.reduce((acc, metric) => {
+                            acc[metric] = [];
+                            return acc;
+                        }, {});
                     }
 
-                    const socket = socketData[data.socket_cookie];
-                    if (data.snd_nxt < data.snd_una)
-                        data.snd_nxt += 0xffffffff;
-                    if (data.ssthresh >= 2147483647)
-                        data.ssthresh = -1000;
-                    if (!socket.outstanding_bytes.length || timestamp - socket.outstanding_bytes[socket.outstanding_bytes.length-1].x >= samplingInterval)
-                        socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
-                    if (!socket.snd_cwnd.length || timestamp - socket.snd_cwnd[socket.snd_cwnd.length-1].x >= samplingInterval)
-                        socket.snd_cwnd.push({x: timestamp, y: data.snd_cwnd});
-                    if ((!socket.ssthresh.length || timestamp - socket.ssthresh[socket.ssthresh.length-1].x >= samplingInterval))
-                        socket.ssthresh.push({x: timestamp, y: data.ssthresh});
-                    if (!socket.snd_wnd.length || timestamp - socket.snd_wnd[socket.snd_wnd.length-1].x >= samplingInterval)
-                        socket.snd_wnd.push({x: timestamp, y: data.snd_wnd});
-                    if (!socket.rcv_wnd.length || timestamp - socket.rcv_wnd[socket.rcv_wnd.length-1].x >= samplingInterval)
-                        socket.rcv_wnd.push({x: timestamp, y: data.rcv_wnd});
-                    if (!socket.srtt.length || timestamp - socket.srtt[socket.srtt.length-1].x >= samplingInterval)
-                        socket.srtt.push({x: timestamp, y: data.srtt});
+                    const socket = socketData[socket_cookie];
+                    const snd_nxt_val = parseInt(snd_nxt, 16);
+                    const snd_una_val = parseInt(snd_una, 16);
+                    const outstanding_bytes = (snd_nxt_val < snd_una_val) ? (snd_nxt_val + 0x100000000 - snd_una_val) : (snd_nxt_val - snd_una_val);
+
+                    metrics.forEach(metric => {
+                        const lastEntry = socket[metric][socket[metric].length - 1];
+                        if (!lastEntry || (timestamp - lastEntry.x) >= samplingInterval) {
+                            let value;
+                            switch(metric) {
+                                case 'outstanding_bytes': value = outstanding_bytes; break;
+                                case 'snd_cwnd': value = parseInt(snd_cwnd); break;
+                                case 'ssthresh': value = parseInt(ssthresh) >= 2147483647 ? -1000 : parseInt(ssthresh); break;
+                                case 'snd_wnd': value = parseInt(snd_wnd); break;
+                                case 'rcv_wnd': value = parseInt(rcv_wnd); break;
+                                case 'srtt': value = parseInt(srtt); break;
+                            }
+                            socket[metric].push({x: timestamp, y: value});
+                        }
+                    });
                 }
             });
 
-            // Populate logData.parsedData with the required format for all metrics
-            metrics.forEach(metric => {
-                logData.parsedData[metric] = Object.keys(socketData).map(socket_cookie => ({
+            logData.parsedData = metrics.reduce((acc, metric) => {
+                acc[metric] = Object.keys(socketData).map(socket_cookie => ({
                     label: socket_cookie,
                     data: socketData[socket_cookie][metric]
                 }));
-            });
-
-            // After parsing, store the parsed data
-            tabList[currentLogType].logData.parsedData = {};
-            metrics.forEach(metric => {
-                tabList[currentLogType].logData.parsedData[metric] = Object.keys(socketData).map(socket_cookie => ({
-                    label: socket_cookie,
-                    data: socketData[socket_cookie][metric]
-                }));
-            });
+                return acc;
+            }, {});
         }
-
 
         // Function to extract data from a single log line
         function extractDataFromLine(line) {
@@ -714,116 +703,6 @@
                 };
             }
             return null;
-        }
-
-        // Function to display Tracepoint chart
-        function displayTracepointChart() {
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            const data = tabList[currentLogType].logData.parsedData;
-            const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
-
-            selectedMetrics.forEach(metric => {
-                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
-                if (!chartDiv) {
-                    chartDiv = document.createElement('div');
-                    chartDiv.style.width = '100%';
-                    chartDiv.style.height = '400px';
-                    chartDiv.style.marginBottom = '20px';
-                    chartDiv.setAttribute('data-metric', metric);
-                    chartContainer.appendChild(chartDiv);
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = chartDiv.clientWidth;
-                    canvas.height = chartDiv.clientHeight;
-                    chartDiv.appendChild(canvas);
-                }
-
-                const canvas = chartDiv.querySelector('canvas');
-                const ctx = canvas.getContext('2d');
-
-                // Prepare datasets for the chart
-                const datasets = data[metric].map((socketData, index) => {
-                    const datasetKey = `${metric}-${socketData.label}`;
-                    const hidden = tabList[currentLogType].logData.chartLegendStatus[datasetKey] !== undefined ? tabList[currentLogType].logData.chartLegendStatus[datasetKey] : false;
-                    return {
-                        label: `Socket ${socketData.label}`,
-                        data: socketData.data,
-                        borderColor: getColor(index),
-                        tension: 0.0,
-                        hidden: hidden
-                    };
-                });
-
-                // Create or update the chart
-                if (chartDiv.chart) {
-                    chartDiv.chart.data.datasets = datasets;
-                    chartDiv.chart.update();
-                } else {
-                    chartDiv.chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            datasets: datasets
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                title: {
-                                    display: true,
-                                    text: `${metric.replace(/_/g, ' ').toUpperCase()}`
-                                },
-                                legend: {
-                                    onClick: (e, legendItem, legend) => {
-                                        const index = legendItem.datasetIndex;
-                                        const ci = legend.chart;
-                                        const meta = ci.getDatasetMeta(index);
-
-                                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-
-                                        // Update the legend status
-                                        const datasetKey = `${metric}-${ci.data.datasets[index].label.replace('Socket ', '')}`;
-                                        tabList[currentLogType].logData.chartLegendStatus[datasetKey] = meta.hidden;
-
-                                        ci.update();
-                                    }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    type: 'linear',
-                                    position: 'bottom',
-                                    title: {
-                                        display: true,
-                                        text: 'Time (seconds)'
-                                    },
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value.toFixed(2);
-                                        }
-                                    }
-                                },
-                                y: {
-                                    type: 'linear',
-                                    position: 'left',
-                                    title: {
-                                        display: true,
-                                        text: 'Value'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-
-            // Remove charts for unselected metrics
-            const allChartDivs = chartContainer.querySelectorAll('[data-metric]');
-            allChartDivs.forEach(div => {
-                const metric = div.getAttribute('data-metric');
-                if (!selectedMetrics.includes(metric)) {
-                    chartContainer.removeChild(div);
-                }
-            });
         }
 
         // Helper function to generate colors for different datasets
