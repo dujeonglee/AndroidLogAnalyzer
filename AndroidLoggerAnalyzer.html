@@ -401,7 +401,7 @@
                     const graphTypeSelection = document.getElementById(`${tabName.toLowerCase()}GraphTypeSelection`);
                 },
                 parseTimestamp: function(line) {
-                    let match = line.match(/\b\d+\.\d+\b/);
+                    let match = line.match(/(\b\d+\.\d+\b):/);
                     if (match) {
                         const [timestamp, ] = match;
                         return [timestamp, parseFloat(timestamp)];
@@ -708,12 +708,26 @@
         // Helper function to generate colors for different datasets
         function getColor(index) {
             const colors = [
-                'rgb(75, 192, 192)',
-                'rgb(255, 99, 132)',
-                'rgb(255, 205, 86)',
-                'rgb(54, 162, 235)',
-                'rgb(153, 102, 255)',
-                'rgb(255, 159, 64)'
+                'rgb(31, 119, 180)',   // Blue
+                'rgb(255, 127, 14)',   // Orange
+                'rgb(44, 160, 44)',    // Green
+                'rgb(214, 39, 40)',    // Red
+                'rgb(148, 103, 189)',  // Purple
+                'rgb(140, 86, 75)',    // Brown
+                'rgb(227, 119, 194)',  // Pink
+                'rgb(127, 127, 127)',  // Gray
+                'rgb(188, 189, 34)',   // Olive
+                'rgb(23, 190, 207)',   // Cyan
+                'rgb(141, 211, 199)',  // Soft Blue
+                'rgb(255, 255, 179)',  // Light Yellow
+                'rgb(190, 186, 218)',  // Lavender
+                'rgb(251, 128, 114)',  // Salmon
+                'rgb(128, 177, 211)',  // Steel Blue
+                'rgb(253, 180, 98)',   // Light Orange
+                'rgb(179, 222, 105)',  // Lime Green
+                'rgb(252, 205, 229)',  // Light Pink
+                'rgb(217, 217, 217)',  // Light Gray
+                'rgb(188, 128, 189)'   // Light Purple
             ];
             return colors[index % colors.length];
         }
