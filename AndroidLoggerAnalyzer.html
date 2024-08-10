@@ -467,7 +467,7 @@
             tabList[currentLogType].logData.selectedMetrics = [...metrics];
         }
 
-        function handleSamplingIntervalChange() {
+        const handleSamplingIntervalChange = () => {
             const samplingIntervalInput = document.getElementById('samplingInterval');
             const newSamplingInterval = parseFloat(samplingIntervalInput.value);
 
@@ -485,7 +485,7 @@
         }
 
         // Update the handleCheckboxChange function
-        function handleCheckboxChange(metric, isChecked) {
+        const handleCheckboxChange = (metric, isChecked) => {
             const index = tabList[currentLogType].logData.selectedMetrics.indexOf(metric);
             if (isChecked && index === -1) {
                 tabList[currentLogType].logData.selectedMetrics.push(metric);
@@ -496,36 +496,8 @@
             updateCharts();
         }
 
-        // Function to add a graph
-        function addGraph(metric) {
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            const existingChart = chartContainer.querySelector(`[data-metric="${metric}"]`);
-            if (!existingChart) {
-                const chartDiv = document.createElement('div');
-                chartDiv.style.width = '100%';
-                chartDiv.style.height = '400px';
-                chartDiv.style.marginBottom = '20px';
-                chartDiv.setAttribute('data-metric', metric);
-                chartContainer.appendChild(chartDiv);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = chartDiv.clientWidth;
-                canvas.height = chartDiv.clientHeight;
-                chartDiv.appendChild(canvas);
-            }
-        }
-
-        // Function to remove a graph
-        function removeGraph(metric) {
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            const chartToRemove = chartContainer.querySelector(`[data-metric="${metric}"]`);
-            if (chartToRemove) {
-                chartContainer.removeChild(chartToRemove);
-            }
-        }
-
         // Function to update charts based on selected metrics
-        function updateCharts() {
+        const updateCharts = () => {
             const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
             const chartDivs = chartContainer.querySelectorAll('[data-metric]');
@@ -574,7 +546,7 @@
             });
         }
 
-        function createChart(ctx, datasets, metric) {
+        const createChart = (ctx, datasets, metric) => {
             return new Chart(ctx, {
                 type: 'line',
                 data: { datasets: datasets },
@@ -630,7 +602,7 @@
             });
         }
 
-        function parseTracepointLog() {
+        const parseTracepointLog = () => {
             const logData = tabList[currentLogType].logData;
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
             const samplingInterval = logData.samplingInterval;
@@ -687,7 +659,7 @@
         }
 
         // Helper function to generate colors for different datasets
-        function getColor(index) {
+        const getColor = (index) => {
             const colors = [
                 'rgb(31, 119, 180)',   // Blue
                 'rgb(255, 127, 14)',   // Orange
