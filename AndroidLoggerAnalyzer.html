@@ -436,7 +436,7 @@
         }
 
         // Function to render graph type selection
-        function renderGraphTypeSelection() {
+        const renderGraphTypeSelection = () => {
             const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
 
@@ -684,25 +684,6 @@
                 }));
                 return acc;
             }, {});
-        }
-
-        // Function to extract data from a single log line
-        function extractDataFromLine(line) {
-            const regex = /snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
-            const match = line.match(regex);
-            if (match) {
-                return {
-                    snd_nxt: parseInt(match[1], 16),
-                    snd_una: parseInt(match[2], 16),
-                    snd_cwnd: parseInt(match[3]),
-                    ssthresh: parseInt(match[4]),
-                    snd_wnd: parseInt(match[5]),
-                    srtt: parseInt(match[6]),
-                    rcv_wnd: parseInt(match[7]),
-                    socket_cookie: match[8]  // Keep this as a string
-                };
-            }
-            return null;
         }
 
         // Helper function to generate colors for different datasets
@@ -955,7 +936,7 @@
             }
         }
 
-        function toggleTracepointContainers() {
+        const toggleTracepointContainers = () => {
             const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
             if (tabList[currentLogType].logData.isLogFileLoaded) {
