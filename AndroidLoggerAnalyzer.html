@@ -478,15 +478,23 @@
             }
 
             tabList[currentLogType].logData.samplingInterval = newSamplingInterval;
+            // Re-parse the log file with the new sampling interval
             parseTracepointLog();
+            // Redraw charts with the new parsed data
             updateCharts();
         }
 
         // Update the handleCheckboxChange function
         function handleCheckboxChange(metric, isChecked) {
+            const index = tabList[currentLogType].logData.selectedMetrics.indexOf(metric);
+            if (isChecked && index === -1) {
+                tabList[currentLogType].logData.selectedMetrics.push(metric);
+            } else if (!isChecked && index > -1) {
+                tabList[currentLogType].logData.selectedMetrics.splice(index, 1);
+            }
+            // Update chart visibility without re-parsing or redrawing
             updateCharts();
         }
-
 
         // Function to add a graph
         function addGraph(metric) {
@@ -518,11 +526,108 @@
 
         // Function to update charts based on selected metrics
         function updateCharts() {
-            const selectedMetrics = Array.from(document.querySelectorAll('input[name="graphType"]:checked'))
-                .map(input => input.value);
+            const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
 
-            tabList[currentLogType].logData.selectedMetrics = selectedMetrics;
-            displayTracepointChart();
+            selectedMetrics.forEach(metric => {
+                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                if (!chartDiv) {
+                    addGraph(metric);
+                    chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                }
+
+                const canvas = chartDiv.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Prepare datasets for the chart
+                const datasets = tabList[currentLogType].logData.parsedData[metric].map((socketData, index) => {
+                    const datasetKey = `${metric}-${socketData.label}`;
+                    const hidden = tabList[currentLogType].logData.chartLegendStatus[datasetKey] !== undefined ? tabList[currentLogType].logData.chartLegendStatus[datasetKey] : false;
+                    return {
+                        label: `Socket ${socketData.label}`,
+                        data: socketData.data,
+                        borderColor: getColor(index),
+                        tension: 0.0,
+                        hidden: hidden
+                    };
+                });
+
+                // Update existing chart or create a new one
+                if (chartDiv.chart) {
+                    chartDiv.chart.data.datasets = datasets;
+                    chartDiv.chart.update('none');  // Use 'none' to prevent animation
+                } else {
+                    chartDiv.chart = createChart(ctx, datasets, metric);
+                }
+
+                // Show or hide the chart based on whether it's selected
+                chartDiv.style.display = selectedMetrics.includes(metric) ? 'block' : 'none';
+            });
+
+            // Remove charts for unselected metrics
+            const allChartDivs = chartContainer.querySelectorAll('[data-metric]');
+            allChartDivs.forEach(div => {
+                const metric = div.getAttribute('data-metric');
+                if (!selectedMetrics.includes(metric)) {
+                    div.style.display = 'none';
+                }
+            });
+        }
+
+        function createChart(ctx, datasets, metric) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,  // Disable animations for better performance
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${metric.replace(/_/g, ' ').toUpperCase()}`
+                        },
+                        legend: {
+                            onClick: (e, legendItem, legend) => {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+
+                                // Update the legend status
+                                const datasetKey = `${metric}-${ci.data.datasets[index].label.replace('Socket ', '')}`;
+                                tabList[currentLogType].logData.chartLegendStatus[datasetKey] = meta.hidden;
+
+                                ci.update();
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function parseTracepointLog() {
@@ -556,11 +661,13 @@
                     const socket = socketData[data.socket_cookie];
                     if (data.snd_nxt < data.snd_una)
                         data.snd_nxt += 0xffffffff;
+                    if (data.ssthresh >= 2147483647)
+                        data.ssthresh = -1000;
                     if (!socket.outstanding_bytes.length || timestamp - socket.outstanding_bytes[socket.outstanding_bytes.length-1].x >= samplingInterval)
                         socket.outstanding_bytes.push({x: timestamp, y: data.snd_nxt - data.snd_una});
                     if (!socket.snd_cwnd.length || timestamp - socket.snd_cwnd[socket.snd_cwnd.length-1].x >= samplingInterval)
                         socket.snd_cwnd.push({x: timestamp, y: data.snd_cwnd});
-                    if (data.ssthresh < 2147483647 && (!socket.ssthresh.length || timestamp - socket.ssthresh[socket.ssthresh.length-1].x >= samplingInterval))
+                    if ((!socket.ssthresh.length || timestamp - socket.ssthresh[socket.ssthresh.length-1].x >= samplingInterval))
                         socket.ssthresh.push({x: timestamp, y: data.ssthresh});
                     if (!socket.snd_wnd.length || timestamp - socket.snd_wnd[socket.snd_wnd.length-1].x >= samplingInterval)
                         socket.snd_wnd.push({x: timestamp, y: data.snd_wnd});
@@ -574,6 +681,15 @@
             // Populate logData.parsedData with the required format for all metrics
             metrics.forEach(metric => {
                 logData.parsedData[metric] = Object.keys(socketData).map(socket_cookie => ({
+                    label: socket_cookie,
+                    data: socketData[socket_cookie][metric]
+                }));
+            });
+
+            // After parsing, store the parsed data
+            tabList[currentLogType].logData.parsedData = {};
+            metrics.forEach(metric => {
+                tabList[currentLogType].logData.parsedData[metric] = Object.keys(socketData).map(socket_cookie => ({
                     label: socket_cookie,
                     data: socketData[socket_cookie][metric]
                 }));
@@ -907,7 +1023,7 @@
                     document.getElementById(`${logType.toLowerCase()}GraphTypeSelection`).style.display = 'block';
                     // Initialize sampling interval
                     tabList[logType].logData.samplingInterval = 0.01;
-                    // Parse the log file once
+                    // Parse the log file
                     parseTracepointLog();
                     // Render the graph type selection (all checked by default)
                     renderGraphTypeSelection();
@@ -915,7 +1031,7 @@
                     updateCharts();
                 };
                 reader.readAsText(file);
-            }else {
+            } else {
                 tabList[logType].logData.logFileName = file.name;
                 const reader = new FileReader();
                 reader.onload = function(e) {
