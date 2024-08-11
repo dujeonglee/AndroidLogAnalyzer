@@ -349,12 +349,6 @@
                 }
             },
             Tracepoint: {
-                presetFilter: {
-                    // Array of predefined filters for Framework logs
-                    'TCP': [
-                        {"checked": true, "expression": "tcp_probe", "color": "#ff0000", "label": "TCP Probe", "isRegex": false}
-                    ]
-                },
                 openLogTypePost: function(){
                     toggleTracepointContainers();
                     renderGraphTypeSelection();
@@ -412,7 +406,7 @@
                     ctx.fillText(event.timestamp, 0, 0);
                 }
             }
-        }
+        };
         // Shared variables for application state
         let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
 
@@ -433,7 +427,7 @@
                 // Append the button to the tab div
                 tabDiv.appendChild(button);
             })
-        }
+        };
 
         // Function to render graph type selection
         const renderGraphTypeSelection = () => {
@@ -465,7 +459,7 @@
 
             // Initialize selectedMetrics with all metrics
             tabList[currentLogType].logData.selectedMetrics = [...metrics];
-        }
+        };
 
         const handleSamplingIntervalChange = () => {
             const samplingIntervalInput = document.getElementById('samplingInterval');
@@ -482,7 +476,7 @@
             parseTracepointLog();
             // Redraw charts with the new parsed data
             updateCharts();
-        }
+        };
 
         // Update the handleCheckboxChange function
         const handleCheckboxChange = (metric, isChecked) => {
@@ -494,7 +488,7 @@
             }
             // Update chart visibility without re-parsing or redrawing
             updateCharts();
-        }
+        };
 
         // Function to update charts based on selected metrics
         const updateCharts = () => {
@@ -544,7 +538,7 @@
                     chartDiv.style.display = 'none';
                 }
             });
-        }
+        };
 
         const createChart = (ctx, datasets, metric) => {
             return new Chart(ctx, {
@@ -600,7 +594,7 @@
                     }
                 }
             });
-        }
+        };
 
         const parseTracepointLog = () => {
             const logData = tabList[currentLogType].logData;
@@ -656,7 +650,7 @@
                 }));
                 return acc;
             }, {});
-        }
+        };
 
         // Helper function to generate colors for different datasets
         const getColor = (index) => {
@@ -683,7 +677,7 @@
                 'rgb(188, 128, 189)'   // Light Purple
             ];
             return colors[index % colors.length];
-        }
+        };
 
         function rendorFilterTabContent(tabName) {
             const body = document.body;
@@ -724,7 +718,7 @@
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].rendorTabContent(tabName);
             });
-        }
+        };
 
         function initializeFilterLogData(tabName) {
             tabList[tabName].logData = {
@@ -742,7 +736,7 @@
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].initializeLogData(tabName);
             });
-        }
+        };
 
         const onFilterChange = (event) => {
             // Exit if no log file is loaded
@@ -783,7 +777,7 @@
                 tabList[currentLogType].logData.filters[index].color = event.target.value;
                 updateDisplayAndTimeline();
             }
-        }
+        };
 
         function addFilterEventListener(tabName) {
             const filterId = tabName.toLowerCase() + 'Filters';
@@ -813,7 +807,7 @@
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].addEventListener(tabName);
             });
-        }
+        };
 
         // Function to populate the preset filter set dropdown
         const populatePresetFilterSets = () => {
@@ -827,7 +821,7 @@
                 option.textContent = setName;
                 dropdown.appendChild(option);
             });
-        }
+        };
 
         // Function to add selected preset filters to the active filter list
         const addSelectedPresetFilters = () => {
@@ -850,7 +844,7 @@
                 updateDisplayAndTimeline();
                 setDropdown.value = ''; // Reset dropdown after adding filters
             }
-        }
+        };
 
         // This function is triggered when a file is selected in the input
         const loadLogFile = (event, logType) => {
@@ -893,7 +887,7 @@
                 };
                 reader.readAsText(file);
             }
-        }
+        };
 
         // Function to enable containers
         const toggleContainers = () => {
@@ -906,7 +900,7 @@
                 filterContainer.classList.add('disabled-container');
                 timelineContainer.classList.add('disabled-container');
             }
-        }
+        };
 
         const toggleTracepointContainers = () => {
             const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
@@ -918,7 +912,7 @@
                 graphTypeSelection.style.display = 'none';
                 chartContainer.style.display = 'none';
             }
-        }
+        };
 
         const binarySearchWithIndex = (arr, entry) => {
             // Initialize search boundaries
@@ -947,12 +941,12 @@
             }
             // Return the insertion point
             return low;
-        }
+        };
 
         const insertIntoMatchingList = (entry) => {
             const index = binarySearchWithIndex(tabList[currentLogType].logData.matchingList, entry);
             tabList[currentLogType].logData.matchingList.splice(index, 0, entry);
-        }
+        };
 
         // Function to update the list of log lines matching the filters
         const updateMatchingList = () => {
@@ -973,7 +967,7 @@
                 }
             }
             adjustEventSpacing();
-        }
+        };
 
         const displayLogContent = () => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
@@ -996,7 +990,7 @@
             if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
                 drawTimeline();
             }
-        }
+        };
 
         // Function to activate the filter interface
         const activateFilters = () => {
@@ -1006,20 +1000,20 @@
             filterContainer.classList.add('active');
             // Add an initial filter to the interface
             addFilter();
-        }
+        };
 
         // Function to update the displayed log file information
         const updateLogFileInfo = () => {
             const logFileInfo = document.getElementById(`${currentLogType.toLowerCase()}LogFileInfo`);
             logFileInfo.textContent = `Loaded ${currentLogType.toLowerCase()} log file: ${tabList[currentLogType].logData.logFileName}`;
-        }
+        };
 
         // Function to update the displayed filter file information
         const updateFilterFileInfo = () => {
             const filterFileInfo = document.getElementById(`${currentLogType.toLowerCase()}FilterFileInfo`);
             // Update the text content with the name of the loaded filter file
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
-        }
+        };
 
         // Function to toggle the visibility of the timeline container
         const toggleTimelineVisibility = () => {
@@ -1033,7 +1027,7 @@
                 // If either is missing, hide the timeline container
                 timelineContainer.style.display = 'none';
             }
-        }
+        };
 
         // Function to evaluate if a line matches a given filter
         const evaluateFilter = (line, filter) => {
@@ -1058,7 +1052,7 @@
                 // Check if all keywords are present in the line
                 return keywords.every(keyword => line.includes(keyword));
             }
-        }
+        };
 
         // Function to add a new filter to the interface
         const addFilter = () => {
@@ -1073,7 +1067,7 @@
             renderFilters();
             updateMatchingList();
             updateDisplayAndTimeline();
-        }
+        };
 
 
         // Function to remove a filter from the interface
@@ -1085,7 +1079,7 @@
             renderFilters();
             updateMatchingList();
             updateDisplayAndTimeline();
-        }
+        };
 
         // Function to export filters to a JSON file
         async function exportFilters() {
@@ -1131,12 +1125,12 @@
                 // Alert the user about the error
                 alert("An error occurred while saving the file. Please try again.");
             }
-        }
+        };
 
         // Helper function to escape backslashes in regex strings
         const escapeRegex = (regex) => {
             return regex.replace(/\\/g, '\\\\');
-        }
+        };
 
         // Function to import filters from a JSON file
         const importFilters = (event) => {
@@ -1162,12 +1156,12 @@
             };
             // Read the file as text
             reader.readAsText(file);
-        }
+        };
 
         // Helper function to unescape backslashes in regex strings
         const unescapeRegex = (regex) => {
             return regex.replace(/\\(.)/g, '$1');
-        }
+        };
 
         // Function to render all filters in the UI
         const renderFilters = () => {
@@ -1192,7 +1186,7 @@
                 `;
                 filterContainer.appendChild(filterDiv);
             }
-        }
+        };
 
         // Helper function to escape HTML special characters
         const escapeHtml = (unsafe) => {
@@ -1202,7 +1196,7 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
-        }
+        };
 
         const openLogType = (evt, logType) => {
             var i, tabcontent, tablinks;
@@ -1220,7 +1214,7 @@
             document.getElementById(logType).style.display = "block";
             evt.currentTarget.className += " active";
             tabList[currentLogType].openLogTypePost();
-        }
+        };
 
         // Function to update UI for the current log type
         const updateUIForCurrentLogType = () => {
@@ -1229,14 +1223,14 @@
             if (tabList[currentLogType].logData.isLogFileLoaded) {
                 updateDisplayAndTimeline();
             }
-        }
+        };
 
         // Helper function to format time elapsed in seconds and milliseconds
         const formatTimeElapsed = (timeElapsed) => {
             const seconds = Math.floor(timeElapsed / 1000);
             const milliseconds = timeElapsed % 1000;
             return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
-        }
+        };
 
         // Function to draw the timeline on the canvas
         const drawTimeline = () => {
@@ -1280,7 +1274,7 @@
                     ctx.restore();
                 }
             }
-        }
+        };
 
         // Function to highlight a specific log line
         const highlightLogLine = (index) => {
@@ -1296,7 +1290,7 @@
                 clickedLine.classList.add('highlighted');
                 clickedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        }
+        };
 
         // Function to update the matching list for a specific filter
         const updateFilterMatchingList = (filterIndex) => {
@@ -1319,13 +1313,13 @@
                 }
             }
             adjustEventSpacing();
-        }
+        };
 
         // Function to update both the display and timeline
         const updateDisplayAndTimeline = () => {
             updateLogEvents();
             displayLogContent();
-        }
+        };
 
         // Function to update log events based on the matching list and active filters
         const updateLogEvents = () => {
@@ -1337,7 +1331,7 @@
                     filterIndex: entry.filterIndex,
                     label: tabList[currentLogType].logData.filters[entry.filterIndex].label
                 }));
-        }
+        };
 
         // Function to initialize timeline interactions
         const initializeTimelineInteractions = (logType) => {
@@ -1386,11 +1380,11 @@
                 adjustEventSpacing();
                 drawTimeline();
             });
-        }
+        };
 
         const adjustEventSpacing = () => {
             tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
-        }
+        };
 
         rendorAllTabs(tabList);
         rendorAllTabContents(tabList);
