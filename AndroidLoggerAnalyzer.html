@@ -350,8 +350,9 @@
             },
             Tracepoint: {
                 openLogTypePost: function(){
-                    toggleTracepointContainers();
-                    renderGraphTypeSelection();
+                    document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`).style.display = 'block';
+                    document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`).style.display = 'block';
+                    document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`).style.display = 'block';
                 },
                 rendorTabContent: function(tabName) {
                     const body = document.body;
@@ -364,7 +365,8 @@
                         <h2>${tabName} Log Analysis</h2>
                         <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                        <div id="${tabName.toLowerCase()}GraphTypeSelection" style="margin-top: 10px;"></div>
+                        <div id="${tabName.toLowerCase()}AnalysisDropdown" style="margin-top: 10px;display: none;"></div>
+                        <div id="${tabName.toLowerCase()}GraphTypeSelection" style="margin-top: 10px; display: none;"></div>
                         <div id="${tabName.toLowerCase()}ChartContainer" style="display: none;"></div>
                     `;
 
@@ -377,7 +379,9 @@
                         isLogFileLoaded: false,
                         parsedData: {},
                         currentGraphType: '',
-                        chartLegendStatus: {}
+                        chartLegendStatus: {},
+                        selectedAnalysis: '',
+                        samplingInterval: 0.01
                     };
                 },
                 addEventListener: function(tabName) {
@@ -391,8 +395,6 @@
                     } else {
                         console.warn(`Element with id '${fileInputId}' not found.`);
                     }
-
-                    const graphTypeSelection = document.getElementById(`${tabName.toLowerCase()}GraphTypeSelection`);
                 },
                 parseTimestamp: function(line) {
                     let match = line.match(/(\b\d+\.\d+\b):/);
@@ -428,6 +430,38 @@
                 tabDiv.appendChild(button);
             })
         };
+
+        // Function to render the analysis dropdown
+        function renderAnalysisDropdown() {
+            const container = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
+            container.innerHTML = `
+                <select id="analysisType">
+                    <option value="">Select analysis type</option>
+                    <option value="tracepoint">Tracepoint</option>
+                    <option value="hip">Host Interface Protocol</option>
+                </select>
+            `;
+
+            // Add event listener to the dropdown
+            document.getElementById('analysisType').addEventListener('change', handleAnalysisSelection);
+        }
+
+        // Function to handle analysis selection
+        function handleAnalysisSelection(event) {
+            const selectedAnalysis = event.target.value;
+            tabList[currentLogType].logData.selectedAnalysis = selectedAnalysis;
+
+            if (selectedAnalysis === 'tracepoint') {
+                toggleTracepointContainers();
+                renderGraphTypeSelection();
+                parseTracepointLog();
+                updateCharts();
+            } else if (selectedAnalysis === 'hip') {
+                // TODO: Implement Host Interface Protocol analysis
+                console.log("Host Interface Protocol analysis not yet implemented");
+                toggleTracepointContainers();
+            }
+        }
 
         // Function to render graph type selection
         const renderGraphTypeSelection = () => {
@@ -470,7 +504,9 @@
                 samplingIntervalInput.value = tabList[currentLogType].logData.samplingInterval;
                 return;
             }
-
+            // Flush old data
+            tabList[currentLogType].logData.parsedData = {};
+            // Update sampling interval
             tabList[currentLogType].logData.samplingInterval = newSamplingInterval;
             // Re-parse the log file with the new sampling interval
             parseTracepointLog();
@@ -518,14 +554,14 @@
                         label: `Socket ${socketData.label}`,
                         data: socketData.data,
                         borderColor: getColor(index),
-                        tension: 0.0,
+                        tension: 0.1,
                         hidden: tabList[currentLogType].logData.chartLegendStatus[datasetKey] || false
                     };
                 });
 
                 if (chartDiv.chart) {
                     chartDiv.chart.data.datasets = datasets;
-                    chartDiv.chart.update('none');
+                    chartDiv.chart.update();
                 } else {
                     chartDiv.chart = createChart(ctx, datasets, metric);
                 }
@@ -539,6 +575,7 @@
                 }
             });
         };
+
 
         const createChart = (ctx, datasets, metric) => {
             return new Chart(ctx, {
@@ -599,19 +636,15 @@
         const parseTracepointLog = () => {
             const logData = tabList[currentLogType].logData;
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
-            const samplingInterval = logData.samplingInterval;
             const socketData = {};
 
             // Regex for extracting data (compile once)
-            const regex = /snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
+            const regex = /(\d+\.\d+):.*snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
 
-            logData.logLines.forEach((line, index) => {
-                const [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
-                if (timestampStr === "") return;
-
+            logData.logLines.forEach((line) => {
                 const match = line.match(regex);
                 if (match) {
-                    const [, snd_nxt, snd_una, snd_cwnd, ssthresh, snd_wnd, srtt, rcv_wnd, socket_cookie] = match;
+                    const [, timestamp, snd_nxt, snd_una, snd_cwnd, ssthresh, snd_wnd, srtt, rcv_wnd, socket_cookie] = match;
 
                     if (!socketData[socket_cookie]) {
                         socketData[socket_cookie] = metrics.reduce((acc, metric) => {
@@ -626,18 +659,17 @@
                     const outstanding_bytes = (snd_nxt_val < snd_una_val) ? (snd_nxt_val + 0x100000000 - snd_una_val) : (snd_nxt_val - snd_una_val);
 
                     metrics.forEach(metric => {
-                        const lastEntry = socket[metric][socket[metric].length - 1];
-                        if (!lastEntry || (timestamp - lastEntry.x) >= samplingInterval) {
-                            let value;
-                            switch(metric) {
-                                case 'outstanding_bytes': value = outstanding_bytes; break;
-                                case 'snd_cwnd': value = parseInt(snd_cwnd); break;
-                                case 'ssthresh': value = parseInt(ssthresh) >= 2147483647 ? -1000 : parseInt(ssthresh); break;
-                                case 'snd_wnd': value = parseInt(snd_wnd); break;
-                                case 'rcv_wnd': value = parseInt(rcv_wnd); break;
-                                case 'srtt': value = parseInt(srtt); break;
-                            }
-                            socket[metric].push({x: timestamp, y: value});
+                        let value;
+                        switch(metric) {
+                            case 'outstanding_bytes': value = outstanding_bytes; break;
+                            case 'snd_cwnd': value = parseInt(snd_cwnd); break;
+                            case 'ssthresh': value = parseInt(ssthresh) >= 2147483647 ? null : parseInt(ssthresh); break;
+                            case 'snd_wnd': value = parseInt(snd_wnd); break;
+                            case 'rcv_wnd': value = parseInt(rcv_wnd); break;
+                            case 'srtt': value = parseInt(srtt); break;
+                        }
+                        if (socket[metric].length === 0 || timestamp - socket[metric][socket[metric].length -1].x >= tabList[currentLogType].logData.samplingInterval) {
+                            socket[metric].push({x: parseFloat(timestamp), y: value});
                         }
                     });
                 }
@@ -858,17 +890,8 @@
                     tabList[logType].logData.logLines = e.target.result.split('\n');
                     updateLogFileInfo();
                     tabList[logType].logData.isLogFileLoaded = true;
-                    toggleTracepointContainers();
-                    // Enable graph type selection after log file is loaded
-                    document.getElementById(`${logType.toLowerCase()}GraphTypeSelection`).style.display = 'block';
-                    // Initialize sampling interval
-                    tabList[logType].logData.samplingInterval = 0.01;
-                    // Parse the log file
-                    parseTracepointLog();
-                    // Render the graph type selection (all checked by default)
-                    renderGraphTypeSelection();
-                    // Display initial charts
-                    updateCharts();
+                    renderAnalysisDropdown();
+                    document.getElementById(`${logType.toLowerCase()}AnalysisDropdown`).style.display = 'block';
                 };
                 reader.readAsText(file);
             } else {
@@ -905,7 +928,7 @@
         const toggleTracepointContainers = () => {
             const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            if (tabList[currentLogType].logData.isLogFileLoaded) {
+            if (tabList[currentLogType].logData.isLogFileLoaded && tabList[currentLogType].logData.selectedAnalysis === 'tracepoint') {
                 graphTypeSelection.style.display = 'block';
                 chartContainer.style.display = 'block';
             } else {
