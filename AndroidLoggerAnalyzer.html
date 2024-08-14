@@ -4,7 +4,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log File Viewer</title>
+    <title>Log Analyzer</title>
     <style>
         /* Set default styles for the body */
         body {
@@ -239,9 +239,91 @@
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
-                rendorTabContent: rendorFilterTabContent,
-                initializeLogData: initializeFilterLogData,
-                addEventListener: addFilterEventListener,
+                rendorTabContent: function (tabName) {
+                    const body = document.body;
+                    const tabContent = document.createElement('div');
+
+                    tabContent.id = tabName;
+                    tabContent.className = 'tabcontent';
+
+                    tabContent.innerHTML = `
+                        <h2>${tabName} Log Analysis</h2>
+                        <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                        <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                            <h2>Filters</h2>
+                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                <option value="">Select a preset filter set</option>
+                            </select>
+                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                            <button onclick="addFilter()">Add Filter</button>
+                            <button onclick="exportFilters()">Export Filters</button>
+                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                            <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                        </div>
+                        <h2>Log</h2>
+                        <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+                    `;
+
+                    body.appendChild(tabContent);
+                },
+                initializeLogData: function (tabName) {
+                    tabList[tabName].logData = {
+                        logLines: [],      // Array to store individual log lines
+                        filters: [],       // Array to store active filters
+                        logEvents: [],     // Array to store parsed log events
+                        matchingList: [],  // Array to store lines matching current filters
+                        logFileName: '',   // Name of the loaded log file
+                        eventSpacing: 30,  // Spacing between events in the timeline
+                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                    };
+                },
+                addEventListener: function(tabName) {
+                    const filterId = tabName.toLowerCase() + 'Filters';
+                    const filterElement = document.getElementById(filterId);
+
+                    if (filterElement) {
+                        filterElement.addEventListener('change', (event) => onFilterChange(event));
+                    } else {
+                        console.warn(`Element with id '${filterId}' not found.`);
+                    }
+
+                    const fileInputId = tabName.toLowerCase() + 'FileInput';
+                    const fileInputIdElement = document.getElementById(fileInputId);
+                    if (fileInputIdElement) {
+                        fileInputIdElement.addEventListener('change', (event) => {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            tabList[tabName].logData.logFileName = file.name;
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                tabList[tabName].logData.logLines = e.target.result.split('\n');
+                                updateLogFileInfo();
+                                if (!tabList[tabName].logData.isLogFileLoaded) {
+                                    activateFilters();
+                                }
+                                tabList[tabName].logData.isLogFileLoaded = true;
+                                updateMatchingList();
+                                updateDisplayAndTimeline();
+                                toggleContainers();
+                            };
+                            reader.readAsText(file);
+                        });
+                        fileInputIdElement.addEventListener('click', function(event) {
+                            event.target.value = null;
+                        });
+                    } else {
+                        console.warn(`Element with id '${fileInputId}' not found.`);
+                    }
+
+                    initializeTimelineInteractions(tabName);
+                },
                 parseTimestamp: function(line) {
                     let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
                     if (match) {
@@ -270,9 +352,91 @@
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
-                rendorTabContent: rendorFilterTabContent,
-                initializeLogData: initializeFilterLogData,
-                addEventListener: addFilterEventListener,
+                rendorTabContent: function (tabName) {
+                    const body = document.body;
+                    const tabContent = document.createElement('div');
+
+                    tabContent.id = tabName;
+                    tabContent.className = 'tabcontent';
+
+                    tabContent.innerHTML = `
+                        <h2>${tabName} Log Analysis</h2>
+                        <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                        <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                            <h2>Filters</h2>
+                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                <option value="">Select a preset filter set</option>
+                            </select>
+                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                            <button onclick="addFilter()">Add Filter</button>
+                            <button onclick="exportFilters()">Export Filters</button>
+                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                            <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                        </div>
+                        <h2>Log</h2>
+                        <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+                    `;
+
+                    body.appendChild(tabContent);
+                },
+                initializeLogData: function (tabName) {
+                    tabList[tabName].logData = {
+                        logLines: [],      // Array to store individual log lines
+                        filters: [],       // Array to store active filters
+                        logEvents: [],     // Array to store parsed log events
+                        matchingList: [],  // Array to store lines matching current filters
+                        logFileName: '',   // Name of the loaded log file
+                        eventSpacing: 30,  // Spacing between events in the timeline
+                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                    };
+                },
+                addEventListener: function(tabName) {
+                    const filterId = tabName.toLowerCase() + 'Filters';
+                    const filterElement = document.getElementById(filterId);
+
+                    if (filterElement) {
+                        filterElement.addEventListener('change', (event) => onFilterChange(event));
+                    } else {
+                        console.warn(`Element with id '${filterId}' not found.`);
+                    }
+
+                    const fileInputId = tabName.toLowerCase() + 'FileInput';
+                    const fileInputIdElement = document.getElementById(fileInputId);
+                    if (fileInputIdElement) {
+                        fileInputIdElement.addEventListener('change', (event) => {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            tabList[tabName].logData.logFileName = file.name;
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                tabList[tabName].logData.logLines = e.target.result.split('\n');
+                                updateLogFileInfo();
+                                if (!tabList[tabName].logData.isLogFileLoaded) {
+                                    activateFilters();
+                                }
+                                tabList[tabName].logData.isLogFileLoaded = true;
+                                updateMatchingList();
+                                updateDisplayAndTimeline();
+                                toggleContainers();
+                            };
+                            reader.readAsText(file);
+                        });
+                        fileInputIdElement.addEventListener('click', function(event) {
+                            event.target.value = null;
+                        });
+                    } else {
+                        console.warn(`Element with id '${fileInputId}' not found.`);
+                    }
+
+                    initializeTimelineInteractions(tabName);
+                },
                 parseTimestamp: function(line) {
                     let match = line.match(/\[(\d+\.\d+)\]/);
                     if (match) {
@@ -297,9 +461,91 @@
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
-                rendorTabContent: rendorFilterTabContent,
-                initializeLogData: initializeFilterLogData,
-                addEventListener: addFilterEventListener,
+                rendorTabContent: function (tabName) {
+                    const body = document.body;
+                    const tabContent = document.createElement('div');
+
+                    tabContent.id = tabName;
+                    tabContent.className = 'tabcontent';
+
+                    tabContent.innerHTML = `
+                        <h2>${tabName} Log Analysis</h2>
+                        <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                        <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                            <h2>Filters</h2>
+                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                <option value="">Select a preset filter set</option>
+                            </select>
+                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                            <button onclick="addFilter()">Add Filter</button>
+                            <button onclick="exportFilters()">Export Filters</button>
+                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                            <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                        </div>
+                        <h2>Log</h2>
+                        <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+                    `;
+
+                    body.appendChild(tabContent);
+                },
+                initializeLogData: function (tabName) {
+                    tabList[tabName].logData = {
+                        logLines: [],      // Array to store individual log lines
+                        filters: [],       // Array to store active filters
+                        logEvents: [],     // Array to store parsed log events
+                        matchingList: [],  // Array to store lines matching current filters
+                        logFileName: '',   // Name of the loaded log file
+                        eventSpacing: 30,  // Spacing between events in the timeline
+                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                    };
+                },
+                addEventListener: function(tabName) {
+                    const filterId = tabName.toLowerCase() + 'Filters';
+                    const filterElement = document.getElementById(filterId);
+
+                    if (filterElement) {
+                        filterElement.addEventListener('change', (event) => onFilterChange(event));
+                    } else {
+                        console.warn(`Element with id '${filterId}' not found.`);
+                    }
+
+                    const fileInputId = tabName.toLowerCase() + 'FileInput';
+                    const fileInputIdElement = document.getElementById(fileInputId);
+                    if (fileInputIdElement) {
+                        fileInputIdElement.addEventListener('change', (event) => {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            tabList[tabName].logData.logFileName = file.name;
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                tabList[tabName].logData.logLines = e.target.result.split('\n');
+                                updateLogFileInfo();
+                                if (!tabList[tabName].logData.isLogFileLoaded) {
+                                    activateFilters();
+                                }
+                                tabList[tabName].logData.isLogFileLoaded = true;
+                                updateMatchingList();
+                                updateDisplayAndTimeline();
+                                toggleContainers();
+                            };
+                            reader.readAsText(file);
+                        });
+                        fileInputIdElement.addEventListener('click', function(event) {
+                            event.target.value = null;
+                        });
+                    } else {
+                        console.warn(`Element with id '${fileInputId}' not found.`);
+                    }
+
+                    initializeTimelineInteractions(tabName);
+                },
                 parseTimestamp: function(line) {
                     let match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
                     if (match) {
@@ -324,9 +570,91 @@
                     updateUIForCurrentLogType();
                     populatePresetFilterSets();
                 },
-                rendorTabContent: rendorFilterTabContent,
-                initializeLogData: initializeFilterLogData,
-                addEventListener: addFilterEventListener,
+                rendorTabContent: function (tabName) {
+                    const body = document.body;
+                    const tabContent = document.createElement('div');
+
+                    tabContent.id = tabName;
+                    tabContent.className = 'tabcontent';
+
+                    tabContent.innerHTML = `
+                        <h2>${tabName} Log Analysis</h2>
+                        <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
+                        <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
+                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                            <h2>Filters</h2>
+                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                <option value="">Select a preset filter set</option>
+                            </select>
+                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                            <button onclick="addFilter()">Add Filter</button>
+                            <button onclick="exportFilters()">Export Filters</button>
+                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
+                            <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
+                        </div>
+                        <h2>Log</h2>
+                        <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
+                    `;
+
+                    body.appendChild(tabContent);
+                },
+                initializeLogData: function (tabName) {
+                    tabList[tabName].logData = {
+                        logLines: [],      // Array to store individual log lines
+                        filters: [],       // Array to store active filters
+                        logEvents: [],     // Array to store parsed log events
+                        matchingList: [],  // Array to store lines matching current filters
+                        logFileName: '',   // Name of the loaded log file
+                        eventSpacing: 30,  // Spacing between events in the timeline
+                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                    };
+                },
+                addEventListener: function(tabName) {
+                    const filterId = tabName.toLowerCase() + 'Filters';
+                    const filterElement = document.getElementById(filterId);
+
+                    if (filterElement) {
+                        filterElement.addEventListener('change', (event) => onFilterChange(event));
+                    } else {
+                        console.warn(`Element with id '${filterId}' not found.`);
+                    }
+
+                    const fileInputId = tabName.toLowerCase() + 'FileInput';
+                    const fileInputIdElement = document.getElementById(fileInputId);
+                    if (fileInputIdElement) {
+                        fileInputIdElement.addEventListener('change', (event) => {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            tabList[tabName].logData.logFileName = file.name;
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                tabList[tabName].logData.logLines = e.target.result.split('\n');
+                                updateLogFileInfo();
+                                if (!tabList[tabName].logData.isLogFileLoaded) {
+                                    activateFilters();
+                                }
+                                tabList[tabName].logData.isLogFileLoaded = true;
+                                updateMatchingList();
+                                updateDisplayAndTimeline();
+                                toggleContainers();
+                            };
+                            reader.readAsText(file);
+                        });
+                        fileInputIdElement.addEventListener('click', function(event) {
+                            event.target.value = null;
+                        });
+                    } else {
+                        console.warn(`Element with id '${fileInputId}' not found.`);
+                    }
+
+                    initializeTimelineInteractions(tabName);
+                },
                 parseTimestamp: function(line) {
                     let match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
                     if (match) {
@@ -388,7 +716,21 @@
                     const fileInputId = tabName.toLowerCase() + 'FileInput';
                     const fileInputIdElement = document.getElementById(fileInputId);
                     if (fileInputIdElement) {
-                        fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
+                        fileInputIdElement.addEventListener('change', (event) => {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            tabList[tabName].logData.logFileName = file.name;
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                tabList[tabName].logData.logLines = e.target.result.split('\n');
+                                updateLogFileInfo();
+                                tabList[tabName].logData.isLogFileLoaded = true;
+                                renderAnalysisDropdown();
+                                document.getElementById(`${tabName.toLowerCase()}AnalysisDropdown`).style.display = 'block';
+                            };
+                            reader.readAsText(file);
+                        });
                         fileInputIdElement.addEventListener('click', function(event) {
                             event.target.value = null;
                         });
@@ -711,58 +1053,12 @@
             return colors[index % colors.length];
         };
 
-        function rendorFilterTabContent(tabName) {
-            const body = document.body;
-            const tabContent = document.createElement('div');
-
-            tabContent.id = tabName;
-            tabContent.className = 'tabcontent';
-
-            tabContent.innerHTML = `
-                <h2>${tabName} Log Analysis</h2>
-                <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
-                <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
-                    <h2>Filters</h2>
-                    <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                        <option value="">Select a preset filter set</option>
-                    </select>
-                    <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                    <button onclick="addFilter()">Add Filter</button>
-                    <button onclick="exportFilters()">Export Filters</button>
-                    <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                    <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                    <div id="${tabName.toLowerCase()}Filters"></div>
-                </div>
-                <h2>Timeline</h2>
-                <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
-                    <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
-                </div>
-                <h2>Log</h2>
-                <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
-            `;
-
-            body.appendChild(tabContent);
-        }
-
         // Rendoring tab contents
         const rendorAllTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].rendorTabContent(tabName);
             });
         };
-
-        function initializeFilterLogData(tabName) {
-            tabList[tabName].logData = {
-                logLines: [],      // Array to store individual log lines
-                filters: [],       // Array to store active filters
-                logEvents: [],     // Array to store parsed log events
-                matchingList: [],  // Array to store lines matching current filters
-                logFileName: '',   // Name of the loaded log file
-                eventSpacing: 30,  // Spacing between events in the timeline
-                isLogFileLoaded: false // Flag to indicate if a log file is loaded
-            };
-        }
 
         const initializeAllLogData = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
@@ -811,30 +1107,6 @@
             }
         };
 
-        function addFilterEventListener(tabName) {
-            const filterId = tabName.toLowerCase() + 'Filters';
-            const filterElement = document.getElementById(filterId);
-
-            if (filterElement) {
-                filterElement.addEventListener('change', (event) => onFilterChange(event));
-            } else {
-                console.warn(`Element with id '${filterId}' not found.`);
-            }
-
-            const fileInputId = tabName.toLowerCase() + 'FileInput';
-            const fileInputIdElement = document.getElementById(fileInputId);
-            if (fileInputIdElement) {
-                fileInputIdElement.addEventListener('change', (event) => loadLogFile(event, tabName));
-                fileInputIdElement.addEventListener('click', function(event) {
-                    event.target.value = null;
-                });
-            } else {
-                console.warn(`Element with id '${fileInputId}' not found.`);
-            }
-
-            initializeTimelineInteractions(tabName);
-        }
-
         const addAllEventListeners = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].addEventListener(tabName);
@@ -875,40 +1147,6 @@
                 updateMatchingList();
                 updateDisplayAndTimeline();
                 setDropdown.value = ''; // Reset dropdown after adding filters
-            }
-        };
-
-        // This function is triggered when a file is selected in the input
-        const loadLogFile = (event, logType) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (logType === 'Tracepoint') {
-                tabList[logType].logData.logFileName = file.name;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    tabList[logType].logData.logLines = e.target.result.split('\n');
-                    updateLogFileInfo();
-                    tabList[logType].logData.isLogFileLoaded = true;
-                    renderAnalysisDropdown();
-                    document.getElementById(`${logType.toLowerCase()}AnalysisDropdown`).style.display = 'block';
-                };
-                reader.readAsText(file);
-            } else {
-                tabList[logType].logData.logFileName = file.name;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    tabList[logType].logData.logLines = e.target.result.split('\n');
-                    updateLogFileInfo();
-                    if (!tabList[logType].logData.isLogFileLoaded) {
-                        activateFilters();
-                    }
-                    tabList[logType].logData.isLogFileLoaded = true;
-                    updateMatchingList();
-                    updateDisplayAndTimeline();
-                    toggleContainers();
-                };
-                reader.readAsText(file);
             }
         };
 
