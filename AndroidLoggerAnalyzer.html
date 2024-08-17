@@ -718,6 +718,9 @@
                             const file = event.target.files[0];
                             if (!file) return;
 
+                            // Reset the UI before loading the new file
+                            resetTracepointUI();
+
                             tabList[tabName].logData.logFileName = file.name;
                             const reader = new FileReader();
                             reader.onload = function(e) {
@@ -950,6 +953,49 @@
             });
         };
 
+        const resetTracepointUI = () => {
+            // Reset the analysis dropdown
+            const analysisDropdown = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
+            if (analysisDropdown) {
+                analysisDropdown.innerHTML = `
+                    <select id="analysisType">
+                        <option value="">Select analysis type</option>
+                        <option value="tracepoint">Tracepoint</option>
+                        <option value="hip">Host Interface Protocol</option>
+                    </select>
+                `;
+            }
+
+            // Reset the graph type selection
+            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            if (graphTypeSelection) {
+                graphTypeSelection.innerHTML = '';
+                graphTypeSelection.style.display = 'none';
+            }
+
+            // Clear the chart container
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            if (chartContainer) {
+                chartContainer.innerHTML = '';
+                chartContainer.style.display = 'none';
+            }
+
+            // Reset the logData object
+            tabList[currentLogType].logData = {
+                logLines: [],
+                logFileName: '',
+                isLogFileLoaded: true,
+                selectedAnalysis: '',
+                samplingInterval: 0.01,
+                tcpProbeDatasetVisibilityState: {}
+            };
+
+            // Hide analysis-specific containers
+            document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`).style.display = 'none';
+            document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`).style.display = 'none';
+            document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`).style.display = 'none';
+        };
+
         const createChart = (ctx, datasets, metric) => {
             return new Chart(ctx, {
                 type: 'line',
@@ -1026,7 +1072,6 @@
                                         }))
                                     ];
                                 }
-
                                 ci.update();
                             }
                         }
