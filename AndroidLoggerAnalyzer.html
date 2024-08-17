@@ -809,13 +809,13 @@
         // Function to render graph type selection
         const renderGraphTypeSelection = () => {
             const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'pumping_rate'];
 
             // Add sampling interval input
             container.innerHTML = `
                 <div id="samplingIntervalInput">
                     <label for="samplingInterval">Sampling Interval (seconds):</label>
-                    <input type="number" id="samplingInterval" name="samplingInterval" min="0.001" step="0.001" value="0.01">
+                    <input type="number" id="samplingInterval" name="samplingInterval" min="0.001" step="0.001" value="${tabList[currentLogType].logData.samplingInterval}">
                 </div>
             `;
 
@@ -1105,10 +1105,10 @@
 
         const parseTracepointLog = () => {
             const logData = tabList[currentLogType].logData;
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'snd_nxt'];
             const socketData = {};
 
-            // Regex for extracting data (compile once)
+            // Updated regex to capture snd_nxt
             const regex = /(\d+\.\d+):.*snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
 
             logData.logLines.forEach((line) => {
@@ -1134,10 +1134,11 @@
                         switch(metric) {
                             case 'outstanding_bytes': value = outstanding_bytes; break;
                             case 'snd_cwnd': value = parseInt(snd_cwnd); break;
-                            case 'ssthress': value = parseInt(ssthresh); break;
+                            case 'ssthresh': value = parseInt(ssthresh); break;
                             case 'snd_wnd': value = parseInt(snd_wnd); break;
                             case 'rcv_wnd': value = parseInt(rcv_wnd); break;
                             case 'srtt': value = parseInt(srtt); break;
+                            case 'snd_nxt': value = snd_nxt_val; break;
                         }
                         socket[metric].push({x: currentTime, y: value});
                     });
@@ -1148,7 +1149,7 @@
         };
 
         const calculatePlotData = (socketData, samplingInterval) => {
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'pumping_rate'];
             const plotData = {};
 
             metrics.forEach(metric => {
@@ -1156,30 +1157,66 @@
                 const socketPlotData = {};
 
                 Object.keys(socketData).forEach(socket_cookie => {
+                    if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] === undefined) {
+                        tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] = {
+                            sum: false,
+                            avg: false,
+                            sockets: {}
+                        };
+                    }
                     if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] === undefined) {
                         tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = false;
                     }
 
                     socketPlotData[socket_cookie] = [];
                     let lastBucketTime = -1;
+                    let firstSndNxt = null;
+                    let lastSndNxt = null;
 
-                    socketData[socket_cookie][metric].forEach(point => {
+                    const dataPoints = metric === 'pumping_rate' ? socketData[socket_cookie]['snd_nxt'] : socketData[socket_cookie][metric];
+                    
+                    dataPoints.forEach(point => {
                         const bucketTime = Math.floor(point.x / samplingInterval) * samplingInterval;
                         
                         if (bucketTime !== lastBucketTime) {
+                            if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
+                                const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
+                                if (!timeRanges.has(lastBucketTime)) {
+                                    timeRanges.set(lastBucketTime, new Map());
+                                }
+                                const socketBucket = timeRanges.get(lastBucketTime);
+                                socketBucket.set(socket_cookie, pumpingRate);
+                                socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
+                            }
+                            
+                            firstSndNxt = point.y;
+                            lastBucketTime = bucketTime;
+                        }
+                        
+                        if (metric === 'pumping_rate') {
+                            lastSndNxt = point.y;
+                        } else {
                             if (!timeRanges.has(bucketTime)) {
                                 timeRanges.set(bucketTime, new Map());
                             }
-                            
                             const socketBucket = timeRanges.get(bucketTime);
                             if (!socketBucket.has(socket_cookie)) {
                                 socketBucket.set(socket_cookie, point.y);
                                 socketPlotData[socket_cookie].push({ x: bucketTime, y: point.y });
                             }
-
-                            lastBucketTime = bucketTime;
                         }
                     });
+
+                    // Handle the last bucket for pumping_rate
+                    if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
+                        const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
+                        if (!timeRanges.has(lastBucketTime)) {
+                            timeRanges.set(lastBucketTime, new Map());
+                        }
+                        const socketBucket = timeRanges.get(lastBucketTime);
+                        socketBucket.set(socket_cookie, pumpingRate);
+                        socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
+                    }
                 });
 
                 const sumData = [];
