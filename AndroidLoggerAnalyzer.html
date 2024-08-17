@@ -992,38 +992,40 @@
                                 }
 
                                 // Recalculate plot data for this metric only
-                                const recalculatedData = calculatePlotData(tabList[currentLogType].logData.socketData, tabList[currentLogType].logData.samplingInterval);
+                                if (index === 0 || index === 1) {
+                                    const recalculatedData = calculatePlotData(tabList[currentLogType].logData.socketData, tabList[currentLogType].logData.samplingInterval);
 
-                                // Update datasets for this chart only
-                                ci.data.datasets = [
-                                    {
-                                        label: `Sum of ${metric}`,
-                                        data: recalculatedData[metric].sum,
-                                        borderColor: 'rgba(0, 0, 0, 0.5)',
-                                        borderWidth: 2,
-                                        fill: false,
-                                        tension: 0.1,
-                                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
-                                    },
-                                    {
-                                        label: `Average of ${metric}`,
-                                        data: recalculatedData[metric].avg,
-                                        borderColor: 'rgba(255, 0, 0, 0.5)',
-                                        borderWidth: 2,
-                                        fill: false,
-                                        tension: 0.1,
-                                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
-                                    },
-                                    ...Object.entries(recalculatedData[metric].sockets).map(([socket_cookie, data], socketIndex) => ({
-                                        label: `Socket ${socket_cookie}`,
-                                        data: data,
-                                        borderColor: getColor(socketIndex + 2),  // +2 to skip black and red
-                                        borderWidth: 1,
-                                        fill: false,
-                                        tension: 0.1,
-                                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
-                                    }))
-                                ];
+                                    // Update datasets for this chart only
+                                    ci.data.datasets = [
+                                        {
+                                            label: `Sum of ${metric}`,
+                                            data: recalculatedData[metric].sum,
+                                            borderColor: 'rgba(0, 0, 0, 0.5)',
+                                            borderWidth: 2,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
+                                        },
+                                        {
+                                            label: `Average of ${metric}`,
+                                            data: recalculatedData[metric].avg,
+                                            borderColor: 'rgba(255, 0, 0, 0.5)',
+                                            borderWidth: 2,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
+                                        },
+                                        ...Object.entries(recalculatedData[metric].sockets).map(([socket_cookie, data], socketIndex) => ({
+                                            label: `Socket ${socket_cookie}`,
+                                            data: data,
+                                            borderColor: getColor(socketIndex + 2),  // +2 to skip black and red
+                                            borderWidth: 1,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
+                                        }))
+                                    ];
+                                }
 
                                 ci.update();
                             }
