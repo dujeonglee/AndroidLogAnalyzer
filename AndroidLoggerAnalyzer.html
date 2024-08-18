@@ -774,531 +774,6 @@
             })
         };
 
-        // Function to render the analysis dropdown
-        function renderAnalysisDropdown() {
-            const container = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
-            container.innerHTML = `
-                <select id="analysisType">
-                    <option value="">Select analysis type</option>
-                    <option value="tracepoint">Tracepoint</option>
-                    <option value="hip">Host Interface Protocol</option>
-                </select>
-            `;
-
-            // Add event listener to the dropdown
-            document.getElementById('analysisType').addEventListener('change', handleAnalysisSelection);
-        }
-
-        // Function to handle analysis selection
-        function handleAnalysisSelection(event) {
-            const selectedAnalysis = event.target.value;
-            tabList[currentLogType].logData.selectedAnalysis = selectedAnalysis;
-
-            if (selectedAnalysis === 'tracepoint') {
-                toggleTracepointContainers();
-                renderGraphTypeSelection();
-                parseTracepointLog();
-                updateCharts();
-            } else if (selectedAnalysis === 'hip') {
-                // TODO: Implement Host Interface Protocol analysis
-                console.log("Host Interface Protocol analysis not yet implemented");
-                toggleTracepointContainers();
-            }
-        }
-
-        // Function to render graph type selection
-        const renderGraphTypeSelection = () => {
-            const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
-            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
-
-            // Add sampling interval input
-            container.innerHTML = `
-                <div id="samplingIntervalInput">
-                    <label for="samplingInterval">Sampling Interval (seconds):</label>
-                    <input type="number" id="samplingInterval" name="samplingInterval" min="0.001" step="0.001" value="${tabList[currentLogType].logData.samplingInterval}">
-                </div>
-            `;
-
-            container.innerHTML += metrics.map(metric => `
-                <input type="checkbox" id="${metric}" name="graphType" value="${metric}" checked>
-                <label for="${metric}">${metric.replace(/_/g, ' ').toUpperCase()}</label><br>
-            `).join('');
-
-            // Add event listeners to checkboxes
-            metrics.forEach(metric => {
-                const checkbox = document.getElementById(metric);
-                checkbox.addEventListener('change', () => handleCheckboxChange(metric, checkbox.checked));
-            });
-
-            // Add event listener to sampling interval input
-            const samplingIntervalInput = document.getElementById('samplingInterval');
-            samplingIntervalInput.addEventListener('change', handleSamplingIntervalChange);
-
-            // Initialize selectedMetrics with all metrics
-            tabList[currentLogType].logData.selectedMetrics = [...metrics];
-        };
-
-        const handleSamplingIntervalChange = () => {
-            const samplingIntervalInput = document.getElementById('samplingInterval');
-            const newSamplingInterval = parseFloat(samplingIntervalInput.value);
-
-            if (isNaN(newSamplingInterval) || newSamplingInterval <= 0 || newSamplingInterval > 1) {
-                alert("Please enter 0 < sampling interval < 1.");
-                samplingIntervalInput.value = tabList[currentLogType].logData.samplingInterval;
-                return;
-            }
-            // Update sampling interval
-            tabList[currentLogType].logData.samplingInterval = newSamplingInterval;
-            // Re-parse the log file with the new sampling interval
-            parseTracepointLog();
-            // Redraw charts with the new parsed data
-            updateCharts();
-        };
-
-
-        // Update the handleCheckboxChange function
-        const handleCheckboxChange = (metric, isChecked) => {
-            const index = tabList[currentLogType].logData.selectedMetrics.indexOf(metric);
-            if (isChecked && index === -1) {
-                tabList[currentLogType].logData.selectedMetrics.push(metric);
-            } else if (!isChecked && index > -1) {
-                tabList[currentLogType].logData.selectedMetrics.splice(index, 1);
-            }
-            // Update chart visibility without re-parsing data
-            updateCharts();
-        };
-
-
-        // Function to update charts based on selected metrics
-        const updateCharts = () => {
-            const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            const logData = tabList[currentLogType].logData;
-            const samplingInterval = logData.samplingInterval;
-            selectedMetrics.forEach(metric => {
-                if (!tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric]) {
-                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] = {
-                        sum: true,
-                        avg: true,
-                        sockets: {}
-                    };
-                }
-            });
-            const plotData = calculatePlotData(logData.socketData, samplingInterval);
-
-            selectedMetrics.forEach(metric => {
-                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
-                if (!chartDiv) {
-                    chartDiv = document.createElement('div');
-                    chartDiv.style.cssText = 'width: 100%; height: 400px; margin-bottom: 20px;';
-                    chartDiv.setAttribute('data-metric', metric);
-                    const canvas = document.createElement('canvas');
-                    chartDiv.appendChild(canvas);
-                    chartContainer.appendChild(chartDiv);
-                }
-
-                const canvas = chartDiv.querySelector('canvas');
-                const ctx = canvas.getContext('2d');
-                const datasets = [
-                    {
-                        label: `Sum of ${metric}`,
-                        data: plotData[metric].sum,
-                        borderColor: 'rgba(0, 0, 0, 0.5)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.1,
-                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
-                    },
-                    {
-                        label: `Average of ${metric}`,
-                        data: plotData[metric].avg,
-                        borderColor: 'rgba(255, 0, 0, 0.5)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.1,
-                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
-                    },
-                    ...Object.entries(plotData[metric].sockets).map(([socket_cookie, data], index) => {
-                        // Initialize visibility state for this socket if it doesn't exist
-                        if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] === undefined) {
-                            tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = false;
-                        }
-                        return {
-                            label: `Socket ${socket_cookie}`,
-                            data: data,
-                            borderColor: getColor(index + 2),  // +2 to skip black and red
-                            borderWidth: 1,
-                            fill: false,
-                            tension: 0.1,
-                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
-                        };
-                    })
-                ];
-
-                if (chartDiv.chart) {
-                    chartDiv.chart.data.datasets = datasets;
-                    chartDiv.chart.update();
-                } else {
-                    chartDiv.chart = createChart(ctx, datasets, metric);
-                }
-
-                chartDiv.style.display = 'block';
-            });
-
-            // Hide charts for unselected metrics
-            chartContainer.querySelectorAll('[data-metric]').forEach(div => {
-                if (!selectedMetrics.includes(div.getAttribute('data-metric'))) {
-                    div.style.display = 'none';
-                }
-            });
-        };
-
-        const resetTracepointUI = () => {
-            // Reset the analysis dropdown
-            const analysisDropdown = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
-            if (analysisDropdown) {
-                analysisDropdown.innerHTML = `
-                    <select id="analysisType">
-                        <option value="">Select analysis type</option>
-                        <option value="tracepoint">Tracepoint</option>
-                        <option value="hip">Host Interface Protocol</option>
-                    </select>
-                `;
-            }
-
-            // Reset the graph type selection
-            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
-            if (graphTypeSelection) {
-                graphTypeSelection.innerHTML = '';
-                graphTypeSelection.style.display = 'none';
-            }
-
-            // Clear the chart container
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            if (chartContainer) {
-                chartContainer.innerHTML = '';
-                chartContainer.style.display = 'none';
-            }
-
-            // Reset the logData object
-            tabList[currentLogType].logData = {
-                logLines: [],
-                logFileName: '',
-                isLogFileLoaded: true,
-                selectedAnalysis: '',
-                samplingInterval: 0.01,
-                tcpProbeDatasetVisibilityState: {}
-            };
-
-            // Hide analysis-specific containers
-            document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`).style.display = 'none';
-            document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`).style.display = 'none';
-            document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`).style.display = 'none';
-        };
-
-        const createChart = (ctx, datasets, metric) => {
-            return new Chart(ctx, {
-                type: 'line',
-                data: { datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `${metric.replace(/_/g, ' ').toUpperCase()}`
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: true,
-                            position: 'nearest'
-                        },
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            },
-                            onClick: (evt, item, legend) => {
-                                const index = item.datasetIndex;
-                                const ci = legend.chart;
-                                const meta = ci.getDatasetMeta(index);
-
-                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                                
-                                // Update the visibility state
-                                if (index === 0) {
-                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum = meta.hidden;
-                                } else if (index === 1) {
-                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg = meta.hidden;
-                                } else {
-                                    const socket_cookie = item.text.replace('Socket ', '');
-                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = meta.hidden;
-                                }
-
-                                // Recalculate plot data for this metric only
-                                if (index === 0 || index === 1) {
-                                    const recalculatedData = calculatePlotData(tabList[currentLogType].logData.socketData, tabList[currentLogType].logData.samplingInterval);
-
-                                    // Update datasets for this chart only
-                                    ci.data.datasets = [
-                                        {
-                                            label: `Sum of ${metric}`,
-                                            data: recalculatedData[metric].sum,
-                                            borderColor: 'rgba(0, 0, 0, 0.5)',
-                                            borderWidth: 2,
-                                            fill: false,
-                                            tension: 0.1,
-                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
-                                        },
-                                        {
-                                            label: `Average of ${metric}`,
-                                            data: recalculatedData[metric].avg,
-                                            borderColor: 'rgba(255, 0, 0, 0.5)',
-                                            borderWidth: 2,
-                                            fill: false,
-                                            tension: 0.1,
-                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
-                                        },
-                                        ...Object.entries(recalculatedData[metric].sockets).map(([socket_cookie, data], socketIndex) => ({
-                                            label: `Socket ${socket_cookie}`,
-                                            data: data,
-                                            borderColor: getColor(socketIndex + 2),  // +2 to skip black and red
-                                            borderWidth: 1,
-                                            fill: false,
-                                            tension: 0.1,
-                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
-                                        }))
-                                    ];
-                                }
-                                ci.update();
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            title: {
-                                display: true,
-                                text: 'Time (seconds)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(2);
-                                }
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Value'
-                            }
-                        }
-                    }
-                }
-            });
-        };
-
-        const parseTracepointLog = () => {
-            const logData = tabList[currentLogType].logData;
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'snd_nxt', 'snd_una'];
-            const socketData = {};
-
-            // Updated regex to capture snd_una (it's already captured, but we'll make it explicit in the extraction)
-            const regex = /(\d+\.\d+):.*snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
-
-            logData.logLines.forEach((line) => {
-                const match = line.match(regex);
-                if (match) {
-                    const [, timestamp, snd_nxt, snd_una, snd_cwnd, ssthresh, snd_wnd, srtt, rcv_wnd, socket_cookie] = match;
-                    const currentTime = parseFloat(timestamp);
-
-                    if (!socketData[socket_cookie]) {
-                        socketData[socket_cookie] = metrics.reduce((acc, metric) => {
-                            acc[metric] = [];
-                            return acc;
-                        }, {});
-                    }
-
-                    const socket = socketData[socket_cookie];
-                    const snd_nxt_val = parseInt(snd_nxt, 16);
-                    const snd_una_val = parseInt(snd_una, 16);
-                    const outstanding_bytes = (snd_nxt_val - snd_una_val + 0x100000000) % 0x100000000;
-
-                    metrics.forEach(metric => {
-                        let value;
-                        switch(metric) {
-                            case 'outstanding_bytes': value = outstanding_bytes; break;
-                            case 'snd_cwnd': value = parseInt(snd_cwnd); break;
-                            case 'ssthresh': value = parseInt(ssthresh); break;
-                            case 'snd_wnd': value = parseInt(snd_wnd); break;
-                            case 'rcv_wnd': value = parseInt(rcv_wnd); break;
-                            case 'srtt': value = parseInt(srtt); break;
-                            case 'snd_nxt': value = snd_nxt_val; break;
-                            case 'snd_una': value = snd_una_val; break;
-                        }
-                        socket[metric].push({x: currentTime, y: value});
-                    });
-                }
-            });
-
-            logData.socketData = socketData;
-        };
-
-        const calculatePlotData = (socketData, samplingInterval) => {
-            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
-            const plotData = {};
-
-            metrics.forEach(metric => {
-                const timeRanges = new Map();
-                const socketPlotData = {};
-
-                Object.keys(socketData).forEach(socket_cookie => {
-                    if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] === undefined) {
-                        tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] = {
-                            sum: false,
-                            avg: false,
-                            sockets: {}
-                        };
-                    }
-                    if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] === undefined) {
-                        tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = false;
-                    }
-
-                    socketPlotData[socket_cookie] = [];
-                    let lastBucketTime = -1;
-                    let firstSndNxt = null;
-                    let lastSndNxt = null;
-                    let firstSndUna = null;
-                    let lastSndUna = null;
-
-                    const dataPoints = metric === 'pumping_rate' ? socketData[socket_cookie]['snd_nxt'] : 
-                                    metric === 'acking_rate' ? socketData[socket_cookie]['snd_una'] :
-                                    socketData[socket_cookie][metric];
-                    
-                    dataPoints.forEach(point => {
-                        const bucketTime = Math.floor(point.x / samplingInterval) * samplingInterval;
-                        
-                        if (bucketTime !== lastBucketTime) {
-                            if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
-                                const pumpingRate = ((lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000) / samplingInterval;
-                                if (!timeRanges.has(lastBucketTime)) {
-                                    timeRanges.set(lastBucketTime, new Map());
-                                }
-                                const socketBucket = timeRanges.get(lastBucketTime);
-                                socketBucket.set(socket_cookie, pumpingRate);
-                                socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
-                            } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
-                                const ackingRate = ((lastSndUna - firstSndUna + 0x100000000) % 0x100000000) / samplingInterval;
-                                if (!timeRanges.has(lastBucketTime)) {
-                                    timeRanges.set(lastBucketTime, new Map());
-                                }
-                                const socketBucket = timeRanges.get(lastBucketTime);
-                                socketBucket.set(socket_cookie, ackingRate);
-                                socketPlotData[socket_cookie].push({ x: lastBucketTime, y: ackingRate });
-                            }
-                            
-                            if (metric === 'pumping_rate') {
-                                firstSndNxt = point.y;
-                            } else if (metric === 'acking_rate') {
-                                firstSndUna = point.y;
-                            }
-                            lastBucketTime = bucketTime;
-                        }
-                        
-                        if (metric === 'pumping_rate') {
-                            lastSndNxt = point.y;
-                        } else if (metric === 'acking_rate') {
-                            lastSndUna = point.y;
-                        } else {
-                            if (!timeRanges.has(bucketTime)) {
-                                timeRanges.set(bucketTime, new Map());
-                            }
-                            const socketBucket = timeRanges.get(bucketTime);
-                            if (!socketBucket.has(socket_cookie)) {
-                                socketBucket.set(socket_cookie, point.y);
-                                socketPlotData[socket_cookie].push({ x: bucketTime, y: point.y });
-                            }
-                        }
-                    });
-
-                    // Handle the last bucket for pumping_rate and acking_rate
-                    if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
-                        const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
-                        if (!timeRanges.has(lastBucketTime)) {
-                            timeRanges.set(lastBucketTime, new Map());
-                        }
-                        const socketBucket = timeRanges.get(lastBucketTime);
-                        socketBucket.set(socket_cookie, pumpingRate);
-                        socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
-                    } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
-                        const ackingRate = (lastSndUna - firstSndUna + 0x100000000) % 0x100000000;
-                        if (!timeRanges.has(lastBucketTime)) {
-                            timeRanges.set(lastBucketTime, new Map());
-                        }
-                        const socketBucket = timeRanges.get(lastBucketTime);
-                        socketBucket.set(socket_cookie, ackingRate);
-                        socketPlotData[socket_cookie].push({ x: lastBucketTime, y: ackingRate });
-                    }
-                });
-
-                const sumData = [];
-                const avgData = [];
-
-                for (const [time, socketValues] of timeRanges) {
-                    const visibleValues = Array.from(socketValues.entries())
-                        .filter(([socket_cookie, _]) => !tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie])
-                        .map(([_, value]) => value);
-
-                    if (visibleValues.length > 0) {
-                        const sum = visibleValues.reduce((a, b) => a + b, 0);
-                        const avg = sum / visibleValues.length;
-                        sumData.push({ x: time, y: sum });
-                        avgData.push({ x: time, y: avg });
-                    }
-                }
-
-                plotData[metric] = {
-                    sum: sumData.sort((a, b) => a.x - b.x),
-                    avg: avgData.sort((a, b) => a.x - b.x),
-                    sockets: socketPlotData
-                };
-            });
-
-            return plotData;
-        };
-
-        // Helper function to generate colors for different datasets
-        const getColor = (index) => {
-            const colors = [
-                'rgb(31, 119, 180)',   // Blue
-                'rgb(255, 127, 14)',   // Orange
-                'rgb(44, 160, 44)',    // Green
-                'rgb(214, 39, 40)',    // Red
-                'rgb(148, 103, 189)',  // Purple
-                'rgb(140, 86, 75)',    // Brown
-                'rgb(227, 119, 194)',  // Pink
-                'rgb(127, 127, 127)',  // Gray
-                'rgb(188, 189, 34)',   // Olive
-                'rgb(23, 190, 207)',   // Cyan
-                'rgb(141, 211, 199)',  // Soft Blue
-                'rgb(255, 255, 179)',  // Light Yellow
-                'rgb(190, 186, 218)',  // Lavender
-                'rgb(251, 128, 114)',  // Salmon
-                'rgb(128, 177, 211)',  // Steel Blue
-                'rgb(253, 180, 98)',   // Light Orange
-                'rgb(179, 222, 105)',  // Lime Green
-                'rgb(252, 205, 229)',  // Light Pink
-                'rgb(217, 217, 217)',  // Light Gray
-                'rgb(188, 128, 189)'   // Light Purple
-            ];
-            return colors[index % colors.length];
-        };
-
         // Rendoring tab contents
         const rendorAllTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
@@ -1331,7 +806,7 @@
                     updateFilterMatchingList(index);
                     updateDisplayAndTimeline();
                 }
-            } 
+            }
             // Handle text input changes
             else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
@@ -1344,7 +819,7 @@
                     tabList[currentLogType].logData.filters[index].label = event.target.value;
                     updateDisplayAndTimeline();
                 }
-            } 
+            }
             // Handle color input changes
             else if (event.target.type === 'color') {
                 // Update filter color
@@ -1406,18 +881,6 @@
             } else {
                 filterContainer.classList.add('disabled-container');
                 timelineContainer.classList.add('disabled-container');
-            }
-        };
-
-        const toggleTracepointContainers = () => {
-            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
-            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
-            if (tabList[currentLogType].logData.isLogFileLoaded && tabList[currentLogType].logData.selectedAnalysis === 'tracepoint') {
-                graphTypeSelection.style.display = 'block';
-                chartContainer.style.display = 'block';
-            } else {
-                graphTypeSelection.style.display = 'none';
-                chartContainer.style.display = 'none';
             }
         };
 
@@ -1891,6 +1354,545 @@
 
         const adjustEventSpacing = () => {
             tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
+        };
+
+        /**
+         * Tracepoint functions
+         */
+         const resetTracepointUI = () => {
+            // Reset the analysis dropdown
+            const analysisDropdown = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
+            if (analysisDropdown) {
+                analysisDropdown.innerHTML = `
+                    <select id="analysisType">
+                        <option value="">Select analysis type</option>
+                        <option value="tracepoint">Tracepoint</option>
+                        <option value="hip">Host Interface Protocol</option>
+                    </select>
+                `;
+            }
+
+            // Reset the graph type selection
+            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            if (graphTypeSelection) {
+                graphTypeSelection.innerHTML = '';
+                graphTypeSelection.style.display = 'none';
+            }
+
+            // Clear the chart container
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            if (chartContainer) {
+                chartContainer.innerHTML = '';
+                chartContainer.style.display = 'none';
+            }
+
+            // Reset the logData object
+            tabList[currentLogType].logData = {
+                logLines: [],
+                logFileName: '',
+                isLogFileLoaded: true,
+                selectedAnalysis: '',
+                samplingInterval: 0.01,
+                tcpProbeDatasetVisibilityState: {}
+            };
+
+            // Hide analysis-specific containers
+            document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`).style.display = 'none';
+            document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`).style.display = 'none';
+            document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`).style.display = 'none';
+        };
+
+        const createChart = (ctx, datasets, metric) => {
+            return new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${metric.replace(/_/g, ' ').toUpperCase()}`
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: true,
+                            position: 'nearest'
+                        },
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            },
+                            onClick: (evt, item, legend) => {
+                                const index = item.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+
+                                // Update the visibility state
+                                if (index === 0) {
+                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum = meta.hidden;
+                                } else if (index === 1) {
+                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg = meta.hidden;
+                                } else {
+                                    const socket_cookie = item.text.replace('Socket ', '');
+                                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = meta.hidden;
+                                }
+
+                                // Recalculate plot data for this metric only
+                                if (index === 0 || index === 1) {
+                                    const recalculatedData = calculatePlotData(tabList[currentLogType].logData.socketData, tabList[currentLogType].logData.samplingInterval);
+
+                                    // Update datasets for this chart only
+                                    ci.data.datasets = [
+                                        {
+                                            label: `Sum of ${metric}`,
+                                            data: recalculatedData[metric].sum,
+                                            borderColor: 'rgba(0, 0, 0, 0.5)',
+                                            borderWidth: 2,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
+                                        },
+                                        {
+                                            label: `Average of ${metric}`,
+                                            data: recalculatedData[metric].avg,
+                                            borderColor: 'rgba(255, 0, 0, 0.5)',
+                                            borderWidth: 2,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
+                                        },
+                                        ...Object.entries(recalculatedData[metric].sockets).map(([socket_cookie, data], socketIndex) => ({
+                                            label: `Socket ${socket_cookie}`,
+                                            data: data,
+                                            borderColor: getColor(socketIndex + 2),  // +2 to skip black and red
+                                            borderWidth: 1,
+                                            fill: false,
+                                            tension: 0.1,
+                                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
+                                        }))
+                                    ];
+                                }
+                                ci.update();
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // Function to update charts based on selected metrics
+        const updateCharts = () => {
+            const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            const logData = tabList[currentLogType].logData;
+            const samplingInterval = logData.samplingInterval;
+            selectedMetrics.forEach(metric => {
+                if (!tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric]) {
+                    tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] = {
+                        sum: true,
+                        avg: true,
+                        sockets: {}
+                    };
+                }
+            });
+            const plotData = calculatePlotData(logData.socketData, samplingInterval);
+
+            selectedMetrics.forEach(metric => {
+                let chartDiv = chartContainer.querySelector(`[data-metric="${metric}"]`);
+                if (!chartDiv) {
+                    chartDiv = document.createElement('div');
+                    chartDiv.style.cssText = 'width: 100%; height: 400px; margin-bottom: 20px;';
+                    chartDiv.setAttribute('data-metric', metric);
+                    const canvas = document.createElement('canvas');
+                    chartDiv.appendChild(canvas);
+                    chartContainer.appendChild(chartDiv);
+                }
+
+                const canvas = chartDiv.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+                const datasets = [
+                    {
+                        label: `Sum of ${metric}`,
+                        data: plotData[metric].sum,
+                        borderColor: 'rgba(0, 0, 0, 0.5)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sum
+                    },
+                    {
+                        label: `Average of ${metric}`,
+                        data: plotData[metric].avg,
+                        borderColor: 'rgba(255, 0, 0, 0.5)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].avg
+                    },
+                    ...Object.entries(plotData[metric].sockets).map(([socket_cookie, data], index) => {
+                        // Initialize visibility state for this socket if it doesn't exist
+                        if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] === undefined) {
+                            tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = false;
+                        }
+                        return {
+                            label: `Socket ${socket_cookie}`,
+                            data: data,
+                            borderColor: getColor(index + 2),  // +2 to skip black and red
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0.1,
+                            hidden: tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie]
+                        };
+                    })
+                ];
+
+                if (chartDiv.chart) {
+                    chartDiv.chart.data.datasets = datasets;
+                    chartDiv.chart.update();
+                } else {
+                    chartDiv.chart = createChart(ctx, datasets, metric);
+                }
+
+                chartDiv.style.display = 'block';
+            });
+
+            // Hide charts for unselected metrics
+            chartContainer.querySelectorAll('[data-metric]').forEach(div => {
+                if (!selectedMetrics.includes(div.getAttribute('data-metric'))) {
+                    div.style.display = 'none';
+                }
+            });
+        };
+
+        const parseTracepointLog = () => {
+            const logData = tabList[currentLogType].logData;
+            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'snd_nxt', 'snd_una'];
+            const socketData = {};
+
+            // Updated regex to capture snd_una (it's already captured, but we'll make it explicit in the extraction)
+            const regex = /(\d+\.\d+):.*snd_nxt=(0x[0-9a-f]+) snd_una=(0x[0-9a-f]+) snd_cwnd=(\d+) ssthresh=(\d+) snd_wnd=(\d+) srtt=(\d+) rcv_wnd=(\d+) sock_cookie=([0-9a-f]+)/;
+
+            logData.logLines.forEach((line) => {
+                const match = line.match(regex);
+                if (match) {
+                    const [, timestamp, snd_nxt, snd_una, snd_cwnd, ssthresh, snd_wnd, srtt, rcv_wnd, socket_cookie] = match;
+                    const currentTime = parseFloat(timestamp);
+
+                    if (!socketData[socket_cookie]) {
+                        socketData[socket_cookie] = metrics.reduce((acc, metric) => {
+                            acc[metric] = [];
+                            return acc;
+                        }, {});
+                    }
+
+                    const socket = socketData[socket_cookie];
+                    const snd_nxt_val = parseInt(snd_nxt, 16);
+                    const snd_una_val = parseInt(snd_una, 16);
+                    const outstanding_bytes = (snd_nxt_val - snd_una_val + 0x100000000) % 0x100000000;
+
+                    metrics.forEach(metric => {
+                        let value;
+                        switch(metric) {
+                            case 'outstanding_bytes': value = outstanding_bytes; break;
+                            case 'snd_cwnd': value = parseInt(snd_cwnd); break;
+                            case 'ssthresh': value = parseInt(ssthresh); break;
+                            case 'snd_wnd': value = parseInt(snd_wnd); break;
+                            case 'rcv_wnd': value = parseInt(rcv_wnd); break;
+                            case 'srtt': value = parseInt(srtt); break;
+                            case 'snd_nxt': value = snd_nxt_val; break;
+                            case 'snd_una': value = snd_una_val; break;
+                        }
+                        socket[metric].push({x: currentTime, y: value});
+                    });
+                }
+            });
+
+            logData.socketData = socketData;
+        };
+
+        const calculatePlotData = (socketData, samplingInterval) => {
+            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+            const plotData = {};
+
+            metrics.forEach(metric => {
+                const timeRanges = new Map();
+                const socketPlotData = {};
+
+                Object.keys(socketData).forEach(socket_cookie => {
+                    if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] === undefined) {
+                        tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric] = {
+                            sum: false,
+                            avg: false,
+                            sockets: {}
+                        };
+                    }
+                    if (tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] === undefined) {
+                        tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie] = false;
+                    }
+
+                    socketPlotData[socket_cookie] = [];
+                    let lastBucketTime = -1;
+                    let firstSndNxt = null;
+                    let lastSndNxt = null;
+                    let firstSndUna = null;
+                    let lastSndUna = null;
+
+                    const dataPoints = metric === 'pumping_rate' ? socketData[socket_cookie]['snd_nxt'] : 
+                                    metric === 'acking_rate' ? socketData[socket_cookie]['snd_una'] :
+                                    socketData[socket_cookie][metric];
+
+                    dataPoints.forEach(point => {
+                        const bucketTime = Math.floor(point.x / samplingInterval) * samplingInterval;
+
+                        if (bucketTime !== lastBucketTime) {
+                            if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
+                                const pumpingRate = ((lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000) / samplingInterval;
+                                if (!timeRanges.has(lastBucketTime)) {
+                                    timeRanges.set(lastBucketTime, new Map());
+                                }
+                                const socketBucket = timeRanges.get(lastBucketTime);
+                                socketBucket.set(socket_cookie, pumpingRate);
+                                socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
+                            } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
+                                const ackingRate = ((lastSndUna - firstSndUna + 0x100000000) % 0x100000000) / samplingInterval;
+                                if (!timeRanges.has(lastBucketTime)) {
+                                    timeRanges.set(lastBucketTime, new Map());
+                                }
+                                const socketBucket = timeRanges.get(lastBucketTime);
+                                socketBucket.set(socket_cookie, ackingRate);
+                                socketPlotData[socket_cookie].push({ x: lastBucketTime, y: ackingRate });
+                            }
+
+                            if (metric === 'pumping_rate') {
+                                firstSndNxt = point.y;
+                            } else if (metric === 'acking_rate') {
+                                firstSndUna = point.y;
+                            }
+                            lastBucketTime = bucketTime;
+                        }
+
+                        if (metric === 'pumping_rate') {
+                            lastSndNxt = point.y;
+                        } else if (metric === 'acking_rate') {
+                            lastSndUna = point.y;
+                        } else {
+                            if (!timeRanges.has(bucketTime)) {
+                                timeRanges.set(bucketTime, new Map());
+                            }
+                            const socketBucket = timeRanges.get(bucketTime);
+                            if (!socketBucket.has(socket_cookie)) {
+                                socketBucket.set(socket_cookie, point.y);
+                                socketPlotData[socket_cookie].push({ x: bucketTime, y: point.y });
+                            }
+                        }
+                    });
+
+                    // Handle the last bucket for pumping_rate and acking_rate
+                    if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
+                        const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
+                        if (!timeRanges.has(lastBucketTime)) {
+                            timeRanges.set(lastBucketTime, new Map());
+                        }
+                        const socketBucket = timeRanges.get(lastBucketTime);
+                        socketBucket.set(socket_cookie, pumpingRate);
+                        socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
+                    } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
+                        const ackingRate = (lastSndUna - firstSndUna + 0x100000000) % 0x100000000;
+                        if (!timeRanges.has(lastBucketTime)) {
+                            timeRanges.set(lastBucketTime, new Map());
+                        }
+                        const socketBucket = timeRanges.get(lastBucketTime);
+                        socketBucket.set(socket_cookie, ackingRate);
+                        socketPlotData[socket_cookie].push({ x: lastBucketTime, y: ackingRate });
+                    }
+                });
+
+                const sumData = [];
+                const avgData = [];
+
+                for (const [time, socketValues] of timeRanges) {
+                    const visibleValues = Array.from(socketValues.entries())
+                        .filter(([socket_cookie, _]) => !tabList[currentLogType].logData.tcpProbeDatasetVisibilityState[metric].sockets[socket_cookie])
+                        .map(([_, value]) => value);
+
+                    if (visibleValues.length > 0) {
+                        const sum = visibleValues.reduce((a, b) => a + b, 0);
+                        const avg = sum / visibleValues.length;
+                        sumData.push({ x: time, y: sum });
+                        avgData.push({ x: time, y: avg });
+                    }
+                }
+
+                plotData[metric] = {
+                    sum: sumData.sort((a, b) => a.x - b.x),
+                    avg: avgData.sort((a, b) => a.x - b.x),
+                    sockets: socketPlotData
+                };
+            });
+
+            return plotData;
+        };
+
+        // Helper function to generate colors for different datasets
+        const getColor = (index) => {
+            const colors = [
+                'rgb(31, 119, 180)',   // Blue
+                'rgb(255, 127, 14)',   // Orange
+                'rgb(44, 160, 44)',    // Green
+                'rgb(214, 39, 40)',    // Red
+                'rgb(148, 103, 189)',  // Purple
+                'rgb(140, 86, 75)',    // Brown
+                'rgb(227, 119, 194)',  // Pink
+                'rgb(127, 127, 127)',  // Gray
+                'rgb(188, 189, 34)',   // Olive
+                'rgb(23, 190, 207)',   // Cyan
+                'rgb(141, 211, 199)',  // Soft Blue
+                'rgb(255, 255, 179)',  // Light Yellow
+                'rgb(190, 186, 218)',  // Lavender
+                'rgb(251, 128, 114)',  // Salmon
+                'rgb(128, 177, 211)',  // Steel Blue
+                'rgb(253, 180, 98)',   // Light Orange
+                'rgb(179, 222, 105)',  // Lime Green
+                'rgb(252, 205, 229)',  // Light Pink
+                'rgb(217, 217, 217)',  // Light Gray
+                'rgb(188, 128, 189)'   // Light Purple
+            ];
+            return colors[index % colors.length];
+        };
+
+        const toggleTracepointContainers = () => {
+            const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+            if (tabList[currentLogType].logData.isLogFileLoaded && tabList[currentLogType].logData.selectedAnalysis === 'tracepoint') {
+                graphTypeSelection.style.display = 'block';
+                chartContainer.style.display = 'block';
+            } else {
+                graphTypeSelection.style.display = 'none';
+                chartContainer.style.display = 'none';
+            }
+        };
+
+        // Function to render the analysis dropdown
+        function renderAnalysisDropdown() {
+            const container = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
+            container.innerHTML = `
+                <select id="analysisType">
+                    <option value="">Select analysis type</option>
+                    <option value="tracepoint">Tracepoint</option>
+                    <option value="hip">Host Interface Protocol</option>
+                </select>
+            `;
+
+            // Add event listener to the dropdown
+            document.getElementById('analysisType').addEventListener('change', handleAnalysisSelection);
+        }
+
+        // Function to handle analysis selection
+        function handleAnalysisSelection(event) {
+            const selectedAnalysis = event.target.value;
+            tabList[currentLogType].logData.selectedAnalysis = selectedAnalysis;
+
+            if (selectedAnalysis === 'tracepoint') {
+                toggleTracepointContainers();
+                renderGraphTypeSelection();
+                parseTracepointLog();
+                updateCharts();
+            } else if (selectedAnalysis === 'hip') {
+                // TODO: Implement Host Interface Protocol analysis
+                console.log("Host Interface Protocol analysis not yet implemented");
+                toggleTracepointContainers();
+            }
+        }
+
+        // Function to render graph type selection
+        const renderGraphTypeSelection = () => {
+            const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
+
+            // Add sampling interval input
+            container.innerHTML = `
+                <div id="samplingIntervalInput">
+                    <label for="samplingInterval">Sampling Interval (seconds):</label>
+                    <input type="number" id="samplingInterval" name="samplingInterval" min="0.001" step="0.001" value="${tabList[currentLogType].logData.samplingInterval}">
+                </div>
+            `;
+
+            container.innerHTML += metrics.map(metric => `
+                <input type="checkbox" id="${metric}" name="graphType" value="${metric}" checked>
+                <label for="${metric}">${metric.replace(/_/g, ' ').toUpperCase()}</label><br>
+            `).join('');
+
+            // Add event listeners to checkboxes
+            metrics.forEach(metric => {
+                const checkbox = document.getElementById(metric);
+                checkbox.addEventListener('change', () => handleCheckboxChange(metric, checkbox.checked));
+            });
+
+            // Add event listener to sampling interval input
+            const samplingIntervalInput = document.getElementById('samplingInterval');
+            samplingIntervalInput.addEventListener('change', handleSamplingIntervalChange);
+
+            // Initialize selectedMetrics with all metrics
+            tabList[currentLogType].logData.selectedMetrics = [...metrics];
+        };
+
+        const handleSamplingIntervalChange = () => {
+            const samplingIntervalInput = document.getElementById('samplingInterval');
+            const newSamplingInterval = parseFloat(samplingIntervalInput.value);
+
+            if (isNaN(newSamplingInterval) || newSamplingInterval <= 0 || newSamplingInterval > 1) {
+                alert("Please enter 0 < sampling interval < 1.");
+                samplingIntervalInput.value = tabList[currentLogType].logData.samplingInterval;
+                return;
+            }
+            // Update sampling interval
+            tabList[currentLogType].logData.samplingInterval = newSamplingInterval;
+            // Re-parse the log file with the new sampling interval
+            parseTracepointLog();
+            // Redraw charts with the new parsed data
+            updateCharts();
+        };
+
+
+        // Update the handleCheckboxChange function
+        const handleCheckboxChange = (metric, isChecked) => {
+            const index = tabList[currentLogType].logData.selectedMetrics.indexOf(metric);
+            if (isChecked && index === -1) {
+                tabList[currentLogType].logData.selectedMetrics.push(metric);
+            } else if (!isChecked && index > -1) {
+                tabList[currentLogType].logData.selectedMetrics.splice(index, 1);
+            }
+            // Update chart visibility without re-parsing data
+            updateCharts();
         };
 
         rendorAllTabs(tabList);
