@@ -842,8 +842,8 @@
             const samplingIntervalInput = document.getElementById('samplingInterval');
             const newSamplingInterval = parseFloat(samplingIntervalInput.value);
 
-            if (isNaN(newSamplingInterval) || newSamplingInterval <= 0) {
-                alert("Please enter a valid positive number for the sampling interval.");
+            if (isNaN(newSamplingInterval) || newSamplingInterval <= 0 || newSamplingInterval > 1) {
+                alert("Please enter 0 < sampling interval < 1.");
                 samplingIntervalInput.value = tabList[currentLogType].logData.samplingInterval;
                 return;
             }
