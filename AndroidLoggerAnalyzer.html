@@ -1718,7 +1718,7 @@
 
                     // Handle the last bucket for pumping_rate and acking_rate
                     if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
-                        const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
+                        const pumpingRate = ((lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000) / samplingInterval;
                         if (!timeRanges.has(lastBucketTime)) {
                             timeRanges.set(lastBucketTime, new Map());
                         }
@@ -1726,7 +1726,7 @@
                         socketBucket.set(socket_cookie, pumpingRate);
                         socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
                     } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
-                        const ackingRate = (lastSndUna - firstSndUna + 0x100000000) % 0x100000000;
+                        const ackingRate = ((lastSndUna - firstSndUna + 0x100000000) % 0x100000000) / samplingInterval;
                         if (!timeRanges.has(lastBucketTime)) {
                             timeRanges.set(lastBucketTime, new Map());
                         }
