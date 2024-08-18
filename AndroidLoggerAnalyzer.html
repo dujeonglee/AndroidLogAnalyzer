@@ -809,7 +809,7 @@
         // Function to render graph type selection
         const renderGraphTypeSelection = () => {
             const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'pumping_rate', 'acking_rate'];
+            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
 
             // Add sampling interval input
             container.innerHTML = `
@@ -1127,7 +1127,7 @@
                     const socket = socketData[socket_cookie];
                     const snd_nxt_val = parseInt(snd_nxt, 16);
                     const snd_una_val = parseInt(snd_una, 16);
-                    const outstanding_bytes = (snd_nxt_val < snd_una_val) ? (snd_nxt_val + 0x100000000 - snd_una_val) : (snd_nxt_val - snd_una_val);
+                    const outstanding_bytes = (snd_nxt_val - snd_una_val + 0x100000000) % 0x100000000;
 
                     metrics.forEach(metric => {
                         let value;
@@ -1150,7 +1150,7 @@
         };
 
         const calculatePlotData = (socketData, samplingInterval) => {
-            const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'pumping_rate', 'acking_rate'];
+            const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
             const plotData = {};
 
             metrics.forEach(metric => {
@@ -1185,7 +1185,7 @@
                         
                         if (bucketTime !== lastBucketTime) {
                             if (metric === 'pumping_rate' && firstSndNxt !== null && lastSndNxt !== null) {
-                                const pumpingRate = (lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000;
+                                const pumpingRate = ((lastSndNxt - firstSndNxt + 0x100000000) % 0x100000000) / samplingInterval;
                                 if (!timeRanges.has(lastBucketTime)) {
                                     timeRanges.set(lastBucketTime, new Map());
                                 }
@@ -1193,7 +1193,7 @@
                                 socketBucket.set(socket_cookie, pumpingRate);
                                 socketPlotData[socket_cookie].push({ x: lastBucketTime, y: pumpingRate });
                             } else if (metric === 'acking_rate' && firstSndUna !== null && lastSndUna !== null) {
-                                const ackingRate = (lastSndUna - firstSndUna + 0x100000000) % 0x100000000;
+                                const ackingRate = ((lastSndUna - firstSndUna + 0x100000000) % 0x100000000) / samplingInterval;
                                 if (!timeRanges.has(lastBucketTime)) {
                                     timeRanges.set(lastBucketTime, new Map());
                                 }
