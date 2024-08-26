@@ -1161,6 +1161,7 @@
         const evaluateFilter = (line, filter) => {
             // If the filter expression is empty, return false (no match)
             if (filter.expression === "") return false;
+
             // Check if the filter is a regular expression
             if (filter.isRegex) {
                 try {
@@ -1174,11 +1175,39 @@
                     return false;
                 }
             } else {
-                // If not a regex, treat the filter as keywords
-                // Split the filter expression into individual keywords
-                const keywords = filter.expression.split(' ');
-                // Check if all keywords are present in the line
-                return keywords.every(keyword => line.includes(keyword));
+                // Split the filter expression into words and quoted phrases
+                const keywords = [];
+                let currentPhrase = '';
+                let inQuotes = false;
+
+                filter.expression.split('').forEach(char => {
+                    if (char === '"') {
+                        if (inQuotes) {
+                            // End of quoted phrase
+                            if (currentPhrase) keywords.push(currentPhrase);
+                            currentPhrase = '';
+                        }
+                        inQuotes = !inQuotes;
+                    } else if (char === ' ' && !inQuotes) {
+                        // Space outside quotes
+                        if (currentPhrase) keywords.push(currentPhrase);
+                        currentPhrase = '';
+                    } else {
+                        currentPhrase += char;
+                    }
+                });
+                if (currentPhrase) keywords.push(currentPhrase);
+
+                // Check if all keywords/phrases are present in the line
+                return keywords.every(keyword => {
+                    if (keyword.startsWith('"') && keyword.endsWith('"')) {
+                        // For quoted phrases, remove quotes and check for exact match
+                        return line.includes(keyword.slice(1, -1));
+                    } else {
+                        // For individual words, check if they're present
+                        return line.includes(keyword);
+                    }
+                });
             }
         };
 
