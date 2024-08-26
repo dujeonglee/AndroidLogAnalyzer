@@ -202,6 +202,15 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        .time-range-container {
+            margin-bottom: 10px;
+        }
+
+        .time-range-container input[type="text"] {
+            width: 150px;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -242,9 +251,11 @@
                 rendorTabContent: function (tabName) {
                     const body = document.body;
                     const tabContent = document.createElement('div');
+                    const timestampPlaceholder = "MM-DD HH:MM:SS.mmm";
 
                     tabContent.id = tabName;
                     tabContent.className = 'tabcontent';
+
 
                     tabContent.innerHTML = `
                         <h2>${tabName} Log Analysis</h2>
@@ -263,6 +274,13 @@
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
                         <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
+                            <label for="${tabName.toLowerCase()}StartTime">Start Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}StartTime" placeholder="${timestampPlaceholder}">
+                            <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
+                            <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                        </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
@@ -280,7 +298,9 @@
                         matchingList: [],  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
-                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                        isLogFileLoaded: false, // Flag to indicate if a log file is loaded
+                        startTime: null,   // Start time of the interested timestamp scope
+                        endTime: null      // End time of the interested timestamp scope
                     };
                 },
                 addEventListener: function(tabName) {
@@ -309,6 +329,7 @@
                                     activateFilters();
                                 }
                                 tabList[tabName].logData.isLogFileLoaded = true;
+                                updateTimeRangeInputs(tabName);
                                 updateMatchingList();
                                 updateDisplayAndTimeline();
                                 toggleContainers();
@@ -325,6 +346,18 @@
                     initializeTimelineInteractions(tabName);
                 },
                 parseTimestamp: function(line) {
+                    let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
+                    if (match) {
+                        const [, timestamp] = match;
+                        const [date, time] = timestamp.split(' ');
+                        const [month, day] = date.split('-');
+                        const [hour, minute, secondWithMs] = time.split(':');
+                        const [second, ms] = secondWithMs.split('.');
+                        return [timestamp, new Date(new Date().getFullYear(), month - 1, day, hour, minute, second, ms)];
+                    }
+                    return ["", null];
+                },
+                parseTimestampRangeInput: function(line) {
                     let match = line.match(/^(\d+-\d+ \d+:\d+:\d+\.\d+)/);
                     if (match) {
                         const [, timestamp] = match;
@@ -355,6 +388,7 @@
                 rendorTabContent: function (tabName) {
                     const body = document.body;
                     const tabContent = document.createElement('div');
+                    const timestampPlaceholder = "seconds.microseconds";
 
                     tabContent.id = tabName;
                     tabContent.className = 'tabcontent';
@@ -376,6 +410,13 @@
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
                         <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
+                            <label for="${tabName.toLowerCase()}StartTime">Start Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}StartTime" placeholder="${timestampPlaceholder}">
+                            <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
+                            <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                        </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
@@ -393,7 +434,9 @@
                         matchingList: [],  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
-                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                        isLogFileLoaded: false, // Flag to indicate if a log file is loaded
+                        startTime: null,   // Start time of the interested timestamp scope
+                        endTime: null      // End time of the interested timestamp scope
                     };
                 },
                 addEventListener: function(tabName) {
@@ -422,6 +465,7 @@
                                     activateFilters();
                                 }
                                 tabList[tabName].logData.isLogFileLoaded = true;
+                                updateTimeRangeInputs(tabName);
                                 updateMatchingList();
                                 updateDisplayAndTimeline();
                                 toggleContainers();
@@ -439,6 +483,14 @@
                 },
                 parseTimestamp: function(line) {
                     let match = line.match(/\[(\d+\.\d+)\]/);
+                    if (match) {
+                        const [, timestamp] = match;
+                        return [timestamp, parseFloat(timestamp)];
+                    }
+                    return ["", null];
+                },
+                parseTimestampRangeInput: function(line) {
+                    let match = line.match(/^(\d+\.\d+)/);
                     if (match) {
                         const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
@@ -464,6 +516,7 @@
                 rendorTabContent: function (tabName) {
                     const body = document.body;
                     const tabContent = document.createElement('div');
+                    const timestampPlaceholder = "seconds.microseconds";
 
                     tabContent.id = tabName;
                     tabContent.className = 'tabcontent';
@@ -485,6 +538,13 @@
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
                         <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
+                            <label for="${tabName.toLowerCase()}StartTime">Start Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}StartTime" placeholder="${timestampPlaceholder}">
+                            <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
+                            <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                        </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
@@ -502,7 +562,9 @@
                         matchingList: [],  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
-                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                        isLogFileLoaded: false, // Flag to indicate if a log file is loaded
+                        startTime: null,   // Start time of the interested timestamp scope
+                        endTime: null      // End time of the interested timestamp scope // Flag to indicate if a log file is loaded
                     };
                 },
                 addEventListener: function(tabName) {
@@ -531,6 +593,7 @@
                                     activateFilters();
                                 }
                                 tabList[tabName].logData.isLogFileLoaded = true;
+                                updateTimeRangeInputs(tabName);
                                 updateMatchingList();
                                 updateDisplayAndTimeline();
                                 toggleContainers();
@@ -548,6 +611,14 @@
                 },
                 parseTimestamp: function(line) {
                     let match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
+                    if (match) {
+                        const [, timestamp] = match;
+                        return [timestamp, parseFloat(timestamp)];
+                    }
+                    return ["", null];
+                },
+                parseTimestampRangeInput: function(line) {
+                    let match = line.match(/^(\d+\.\d+)/);
                     if (match) {
                         const [, timestamp] = match;
                         return [timestamp, parseFloat(timestamp)];
@@ -573,6 +644,7 @@
                 rendorTabContent: function (tabName) {
                     const body = document.body;
                     const tabContent = document.createElement('div');
+                    const timestampPlaceholder = "YYYY/MM/DD-HH:MM:SS.mmm";
 
                     tabContent.id = tabName;
                     tabContent.className = 'tabcontent';
@@ -594,6 +666,13 @@
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
                         <h2>Timeline</h2>
+                        <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
+                            <label for="${tabName.toLowerCase()}StartTime">Start Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}StartTime" placeholder="${timestampPlaceholder}">
+                            <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
+                            <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
+                            <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                        </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
@@ -611,7 +690,9 @@
                         matchingList: [],  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
-                        isLogFileLoaded: false // Flag to indicate if a log file is loaded
+                        isLogFileLoaded: false, // Flag to indicate if a log file is loaded
+                        startTime: null,   // Start time of the interested timestamp scope
+                        endTime: null      // End time of the interested timestamp scope // Flag to indicate if a log file is loaded
                     };
                 },
                 addEventListener: function(tabName) {
@@ -640,6 +721,7 @@
                                     activateFilters();
                                 }
                                 tabList[tabName].logData.isLogFileLoaded = true;
+                                updateTimeRangeInputs(tabName);
                                 updateMatchingList();
                                 updateDisplayAndTimeline();
                                 toggleContainers();
@@ -656,10 +738,27 @@
                     initializeTimelineInteractions(tabName);
                 },
                 parseTimestamp: function(line) {
-                    let match = line.match(/\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3}/);
+                    let match = line.match(/^(\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3})/);
                     if (match) {
                         // Split the string into date and time parts
-                        const [timestamp, ] = match;
+                        const [, timestamp] = match;
+                        const [datePart, timePart] = timestamp.split('-');
+                        // Split the date part into year, month, day
+                        const [year, month, day] = datePart.split('/');
+                        // Split the time part into hours, minutes, seconds (and milliseconds)
+                        const [time, milliseconds] = timePart.split('.');
+                        const [hours, minutes, seconds] = time.split(':');
+                        // Create a new Date object
+                        // Note: months in JavaScript Date are 0-indexed, so we subtract 1 from the month
+                        return [timestamp, new Date(year, month - 1, day, hours, minutes, seconds, milliseconds)];
+                    }
+                    return ["", null];
+                },
+                parseTimestampRangeInput: function(line) {
+                    let match = line.match(/^(\d{4}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d{3})/);
+                    if (match) {
+                        // Split the string into date and time parts
+                        const [, timestamp] = match;
                         const [datePart, timePart] = timestamp.split('-');
                         // Split the date part into year, month, day
                         const [year, month, day] = datePart.split('/');
@@ -774,6 +873,61 @@
             })
         };
 
+        const updateTimeRangeInputs = (tabName) => {
+            const logData = tabList[tabName].logData;
+            if (logData.logLines.length > 0) {
+                let startTime = Infinity;
+                let endTime = -Infinity;
+                let startTimeStr = '';
+                let endTimeStr = '';
+
+                logData.logLines.forEach(line => {
+                    const [timestampStr, timestamp] = tabList[tabName].parseTimestamp(line);
+                    if (timestamp !== null) {
+                        if (timestamp < startTime) {
+                            startTime = timestamp;
+                            startTimeStr = timestampStr;
+                        }
+                        if (timestamp > endTime) {
+                            endTime = timestamp;
+                            endTimeStr = timestampStr;
+                        }
+                    }
+                });
+
+                if (startTime !== Infinity && endTime !== -Infinity) {
+                    logData.startTime = startTime;
+                    logData.endTime = endTime;
+
+                    document.getElementById(`${tabName.toLowerCase()}StartTime`).value = startTimeStr;
+                    document.getElementById(`${tabName.toLowerCase()}EndTime`).value = endTimeStr;
+                }
+            }
+        };
+
+        const updateTimeRange = (tabName) => {
+            const startTimeInput = document.getElementById(`${tabName.toLowerCase()}StartTime`);
+            const endTimeInput = document.getElementById(`${tabName.toLowerCase()}EndTime`);
+            const [, startTime] = tabList[tabName].parseTimestampRangeInput(startTimeInput.value);
+            const [, endTime] = tabList[tabName].parseTimestampRangeInput(endTimeInput.value);
+
+            if (startTime === null || endTime === null) {
+                alert("Please enter valid timestamps in the correct format for this log type.");
+                return;
+            }
+
+            if (startTime >= endTime) {
+                alert("Start time must be less than end time.");
+                return;
+            }
+
+            tabList[tabName].logData.startTime = startTime;
+            tabList[tabName].logData.endTime = endTime;
+
+            updateMatchingList();
+            updateDisplayAndTimeline();
+        };
+
         // Rendoring tab contents
         const rendorAllTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
@@ -875,12 +1029,15 @@
         const toggleContainers = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
+            const timeRangeContainer = document.getElementById(`${currentLogType.toLowerCase()}TimeRangeContainer`);
             if (tabList[currentLogType].logData.isLogFileLoaded) {
                 filterContainer.classList.remove('disabled-container');
                 timelineContainer.classList.remove('disabled-container');
+                timeRangeContainer.classList.remove('disabled-container');
             } else {
                 filterContainer.classList.add('disabled-container');
                 timelineContainer.classList.add('disabled-container');
+                timeRangeContainer.classList.add('disabled-container');
             }
         };
 
@@ -924,6 +1081,7 @@
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
+                if (timestamp < tabList[currentLogType].logData.startTime || timestamp > tabList[currentLogType].logData.endTime) continue;
                 for (let [filterIndex, filter] of tabList[currentLogType].logData.filters.entries()) {
                     if (evaluateFilter(line, filter)) {
                         insertIntoMatchingList({
@@ -1289,18 +1447,24 @@
         const updateDisplayAndTimeline = () => {
             updateLogEvents();
             displayLogContent();
+            if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
+                drawTimeline();
+            }
         };
 
         // Function to update log events based on the matching list and active filters
         const updateLogEvents = () => {
-            tabList[currentLogType].logData.logEvents = tabList[currentLogType].logData.matchingList.filter(entry => tabList[currentLogType].logData.filters[entry.filterIndex].checked)
-                .map(entry => ({
-                    timestamp: entry.timestamp,
-                    color: tabList[currentLogType].logData.filters[entry.filterIndex].color,
-                    index: entry.index,
-                    filterIndex: entry.filterIndex,
-                    label: tabList[currentLogType].logData.filters[entry.filterIndex].label
-                }));
+            tabList[currentLogType].logData.logEvents = tabList[currentLogType].logData.matchingList.filter(entry => 
+                tabList[currentLogType].logData.filters[entry.filterIndex].checked &&
+                entry.timestamp >= tabList[currentLogType].logData.startTime &&
+                entry.timestamp <= tabList[currentLogType].logData.endTime
+            ).map(entry => ({
+                timestamp: entry.timestamp,
+                color: tabList[currentLogType].logData.filters[entry.filterIndex].color,
+                index: entry.index,
+                filterIndex: entry.filterIndex,
+                label: tabList[currentLogType].logData.filters[entry.filterIndex].label
+            }));
         };
 
         // Function to initialize timeline interactions
