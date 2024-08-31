@@ -854,25 +854,52 @@
         // Shared variables for application state
         let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
 
-        // Rendoring tab
+        /**
+         * Renders all tabs based on the provided tabList object.
+         * 
+         * This function dynamically creates tab buttons for each log type specified in the tabList.
+         * It adds these buttons to the DOM, setting up the necessary attributes and event listeners
+         * for tab navigation.
+         *
+         * @param {Object} tabList - An object containing information about each tab/log type.
+         *                           The keys of this object represent the names of the log types.
+         * 
+         * @example
+         * // Assuming tabList is defined as:
+         * // const tabList = { Framework: {...}, Kernel: {...}, Driver: {...} };
+         * rendorAllTabs(tabList);
+         * // This will create three tab buttons: "Framework Log", "Kernel Log", and "Driver Log"
+         */
         const rendorAllTabs = (tabList) => {
-            // Get the div element with class "tab"
             const tabDiv = document.querySelector('.tab');
-            // Loop through the tabList and create buttons
             Object.keys(tabList).forEach(tabName => {
-                // Create a new button element
                 const button = document.createElement('button');
-                // Set the button's class
                 button.className = 'tablinks';
-                // Set the button's onclick attribute
                 button.setAttribute('onclick', `openLogType(event, '${tabName}')`);
-                // Set the button's text content
                 button.textContent = `${tabName} Log`;
-                // Append the button to the tab div
                 tabDiv.appendChild(button);
             })
         };
 
+        /**
+         * Updates the time range input fields based on the log data for a specific tab.
+         * 
+         * This function analyzes the log lines to determine the earliest and latest timestamps
+         * in the log data. It then updates the start and end time input fields in the UI with
+         * these values. This allows users to see and potentially adjust the time range for
+         * log analysis.
+         *
+         * @param {string} tabName - The name of the current tab/log type being processed.
+         * 
+         * @example
+         * updateTimeRangeInputs('Framework');
+         * // This will update the start and end time inputs for the Framework log tab
+         * 
+         * @note
+         * - The function expects the log data to be stored in tabList[tabName].logData.
+         * - It uses a tab-specific timestamp parsing function (tabList[tabName].parseTimestamp).
+         * - If no valid timestamps are found, the input fields will not be updated.
+         */
         const updateTimeRangeInputs = (tabName) => {
             const logData = tabList[tabName].logData;
             if (logData.logLines.length > 0) {
@@ -905,6 +932,27 @@
             }
         };
 
+        /**
+         * Updates the time range for log analysis based on user input.
+         * 
+         * This function is triggered when the user modifies the start or end time inputs.
+         * It validates the input, ensures the time range is logical (start before end),
+         * and updates the internal data structure with the new time range. After updating,
+         * it refreshes the log display and timeline to reflect the new time range.
+         *
+         * @param {string} tabName - The name of the current tab/log type being processed.
+         * 
+         * @throws {Alert} If the timestamps are invalid or if the start time is after the end time.
+         * 
+         * @example
+         * updateTimeRange('Kernel');
+         * // This will update the time range for the Kernel log tab based on user input
+         * 
+         * @note
+         * - Uses tab-specific timestamp parsing (tabList[tabName].parseTimestampRangeInput).
+         * - Calls updateMatchingList() and updateDisplayAndTimeline() to refresh the UI.
+         * - The function assumes the existence of startTime and endTime input elements in the DOM.
+         */
         const updateTimeRange = (tabName) => {
             const startTimeInput = document.getElementById(`${tabName.toLowerCase()}StartTime`);
             const endTimeInput = document.getElementById(`${tabName.toLowerCase()}EndTime`);
@@ -935,67 +983,128 @@
             });
         };
 
+        // Initialize log data
         const initializeAllLogData = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].initializeLogData(tabName);
             });
         };
 
+        /**
+         * Handles changes to filter settings in the UI.
+         * 
+         * This function is an event handler that responds to various user interactions
+         * with the filter controls. It updates the internal filter data structure based
+         * on user input and triggers appropriate updates to the UI.
+         *
+         * @param {Event} event - The DOM event object triggered by the user interaction.
+         * 
+         * @example
+         * // Typically attached to filter elements in the DOM:
+         * filterElement.addEventListener('change', onFilterChange);
+         * 
+         * @note
+         * - Handles changes for checkbox, text input, and color input elements.
+         * - Updates different aspects of the filter based on the input type:
+         *   - Checkbox: Updates filter activation and regex toggle.
+         *   - Text input: Updates filter expression, label, or dynamic label regex.
+         *   - Color input: Updates filter color.
+         * - Triggers updateFilterMatchingList() for changes that affect filtering logic.
+         * - Calls updateDisplayAndTimeline() to refresh the UI after most changes.
+         * - Relies on the global currentLogType variable to identify the current log type.
+         * - Assumes a specific structure for filter elements in the DOM.
+         * 
+         * @throws {Error} Implicitly, if the DOM structure doesn't match expectations.
+         */
         const onFilterChange = (event) => {
-            // Exit if no log file is loaded
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
-            // Find the filter container and its index
             const filterDiv = event.target.closest('.filter-container');
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
-            // Handle checkbox changes
             if (event.target.type === 'checkbox') {
-                // Check if it's not the regex toggle
                 if (!event.target.closest('.toggle-switch')) {
-                    // Update filter's checked status
                     tabList[currentLogType].logData.filters[index].checked = event.target.checked;
                     updateDisplayAndTimeline();
                 } else {
-                    // Handle regex toggle
                     tabList[currentLogType].logData.filters[index].isRegex = event.target.checked;
                     updateFilterMatchingList(index);
                     updateDisplayAndTimeline();
                 }
             }
-            // Handle text input changes
             else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
-                    // Update filter expression
                     tabList[currentLogType].logData.filters[index].expression = event.target.value;
                     updateFilterMatchingList(index);
                     updateDisplayAndTimeline();
                 } else if (event.target.placeholder === 'Filter label') {
-                    // Update filter label
                     tabList[currentLogType].logData.filters[index].label = event.target.value;
                     updateDisplayAndTimeline();
                 } else if (event.target.placeholder === 'Dynamic label regex') {
-                    // Update dynamic label regex
                     tabList[currentLogType].logData.filters[index].dynamicLabelRegex = event.target.value;
                     updateDisplayAndTimeline();
                 }
             }
-            // Handle color input changes
             else if (event.target.type === 'color') {
-                // Update filter color
                 tabList[currentLogType].logData.filters[index].color = event.target.value;
                 updateDisplayAndTimeline();
             }
         };
 
+        /**
+         * Adds event listeners for all tabs defined in the tabList.
+         * 
+         * This function iterates through all tab types defined in the tabList object
+         * and calls the addEventListener method specific to each tab type. It's used
+         * to set up all necessary event listeners for the application in one centralized place.
+         *
+         * @param {Object} tabList - An object containing information about each tab/log type.
+         *                           Each property of this object should have an addEventListener method.
+         * 
+         * @example
+         * const tabList = {
+         *   Framework: { addEventListener: function(tabName) { ... } },
+         *   Kernel: { addEventListener: function(tabName) { ... } },
+         *   Driver: { addEventListener: function(tabName) { ... } }
+         * };
+         * addAllEventListeners(tabList);
+         * 
+         * @note
+         * - Assumes each tab type in tabList has an addEventListener method.
+         * - The addEventListener method for each tab is responsible for setting up
+         *   all the necessary event listeners specific to that tab type.
+         * - This function is typically called once during the initialization of the application.
+         * 
+         * @throws {TypeError} If any tab type in tabList doesn't have an addEventListener method.
+         */
         const addAllEventListeners = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].addEventListener(tabName);
             });
         };
 
-        // Function to populate the preset filter set dropdown
+        /**
+         * Populates the preset filter set dropdown menu for the current log type.
+         * 
+         * This function dynamically generates options for the preset filter set dropdown
+         * based on the predefined filter sets available for the current log type. It clears
+         * any existing options and adds a default "Select a preset filter set" option before
+         * adding options for each preset filter set.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // Assuming currentLogType is 'Framework' and it has preset filters defined:
+         * populatePresetFilterSets();
+         * // This will populate the dropdown with options like "Basic Filter", etc.
+         * 
+         * @note
+         * - Relies on the global currentLogType variable to determine which preset filters to use.
+         * - Assumes the existence of a dropdown element with ID '{logType}PresetFilterSets' in the DOM.
+         * - The preset filter sets should be defined in tabList[currentLogType].presetFilter.
+         * - This function is typically called when switching between log types or initializing a log type view.
+         * 
+         * @throws {Error} Implicitly, if the expected DOM element is not found.
+         */
         const populatePresetFilterSets = () => {
-            // Dynamically populates the dropdown with options based on the current log type
-            // Creates an option for each preset filter set
             const dropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
             dropdown.innerHTML = '<option value="">Select a preset filter set</option>';
             Object.keys(tabList[currentLogType].presetFilter).forEach((setName) => {
@@ -1006,30 +1115,70 @@
             });
         };
 
-        // Function to add selected preset filters to the active filter list
+        /**
+         * Adds the selected preset filters to the active filter list for the current log type.
+         * 
+         * This function retrieves the selected preset filter set from the dropdown,
+         * adds all filters from that set to the active filters, and updates the UI accordingly.
+         * It ensures that newly added preset filters are checked (active) by default.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // Typically called when a user selects a preset filter set and clicks an "Add" button
+         * addSelectedPresetFilters();
+         * 
+         * @note
+         * - Checks if a log file is loaded before proceeding. If not, the function returns early.
+         * - Relies on the global currentLogType variable to access the correct tab and preset filters.
+         * - Assumes the existence of a dropdown element with ID '{logType}PresetFilterSets' in the DOM.
+         * - Modifies tabList[currentLogType].logData.filters, adding new filters from the selected preset.
+         * - Calls renderFilters(), updateMatchingList(), and updateDisplayAndTimeline() to refresh the UI.
+         * - Resets the dropdown selection after adding filters.
+         * 
+         * @throws {Error} Implicitly, if the expected DOM elements are not found or if the preset filter structure is incorrect.
+         */
         const addSelectedPresetFilters = () => {
-            // Checks if a log file is loaded
-            // Retrieves the selected preset filter set
-            // Adds all filters from the selected set to the active filters
-            // Updates the UI, including filter rendering and log display
-            // Resets the dropdown selection after adding filters
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const setDropdown = document.getElementById(`${currentLogType.toLowerCase()}PresetFilterSets`);
             const setName = setDropdown.value;
 
             if (setName) {
-                // Add all filters from the selected set
                 tabList[currentLogType].presetFilter[setName].forEach(filter => {
                     tabList[currentLogType].logData.filters.push({...filter, checked: true});
                 });
                 renderFilters();
                 updateMatchingList();
                 updateDisplayAndTimeline();
-                setDropdown.value = ''; // Reset dropdown after adding filters
+                setDropdown.value = '';
             }
         };
 
-        // Function to enable containers
+        /**
+         * Toggles the enabled/disabled state of filter, timeline, and time range containers
+         * based on whether a log file is loaded for the current log type.
+         * 
+         * This function enables (removes 'disabled-container' class) or disables (adds 'disabled-container' class)
+         * the UI containers related to log analysis. It's typically called after loading a log file
+         * or when switching between log types.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After loading a log file or switching log types
+         * toggleContainers();
+         * 
+         * @note
+         * - Relies on the global currentLogType variable to determine which containers to toggle.
+         * - Assumes the existence of three container elements in the DOM for each log type:
+         *   - {logType}FilterContainer
+         *   - {logType}TimelineContainer
+         *   - {logType}TimeRangeContainer
+         * - The state of the containers is determined by tabList[currentLogType].logData.isLogFileLoaded.
+         * - Uses the 'disabled-container' CSS class to visually and functionally disable containers.
+         * 
+         * @throws {Error} Implicitly, if any of the expected DOM elements are not found.
+         */
         const toggleContainers = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
@@ -1045,41 +1194,125 @@
             }
         };
 
+        /**
+         * Performs a binary search on a sorted array of log entries to find the insertion point for a new entry.
+         * 
+         * This function uses a modified binary search algorithm that takes into account both the timestamp
+         * and the original index of log entries. It's designed to maintain the order of entries with identical
+         * timestamps based on their original position in the log file.
+         *
+         * @param {Array} arr - The sorted array of log entries to search through.
+         * @param {Object} entry - The new log entry to insert.
+         * @param {number} entry.timestamp - The timestamp of the entry.
+         * @param {number} entry.index - The original index of the entry in the log file.
+         * 
+         * @returns {number} The index where the new entry should be inserted to maintain sort order.
+         * 
+         * @example
+         * const sortedEntries = [
+         *   { timestamp: 1000, index: 0 },
+         *   { timestamp: 2000, index: 1 },
+         *   { timestamp: 2000, index: 2 }
+         * ];
+         * const newEntry = { timestamp: 2000, index: 3 };
+         * const insertionPoint = binarySearchWithIndex(sortedEntries, newEntry);
+         * console.log(insertionPoint); // Output: 3
+         * 
+         * @note
+         * - Assumes the input array is sorted by timestamp, with ties broken by the original index.
+         * - Uses the unsigned right shift operator (>>>) for efficient integer division by 2.
+         * - This function is typically used in conjunction with insertIntoMatchingList to maintain a sorted list of log entries.
+         * 
+         * @complexity O(log n), where n is the length of the input array.
+         */
         const binarySearchWithIndex = (arr, entry) => {
-            // Initialize search boundaries
             let low = 0;
             let high = arr.length;
             while (low < high) {
-                // Calculate midpoint (using unsigned right shift for integer division)
                 let mid = (low + high) >>> 1;
-                // Compare timestamps
                 if (arr[mid].timestamp < entry.timestamp) {
-                    // If midpoint timestamp is earlier, search upper half
                     low = mid + 1;
                 } else if (arr[mid].timestamp > entry.timestamp) {
-                    // If midpoint timestamp is later, search lower half
                     high = mid;
                 } else {
-                    // If timestamps are equal, compare original indices
                     if (arr[mid].index < entry.index) {
-                        // If midpoint index is lower, search upper half
                         low = mid + 1;
                     } else {
-                        // If midpoint index is higher or equal, search lower half
                         high = mid;
                     }
                 }
             }
-            // Return the insertion point
             return low;
         };
 
+        /**
+         * Inserts a new log entry into the matching list while maintaining sort order.
+         * 
+         * This function uses the binarySearchWithIndex function to determine the correct
+         * insertion point for the new entry, then inserts it into the matchingList array
+         * at that position. This ensures that the matchingList remains sorted by timestamp
+         * and original index order after each insertion.
+         *
+         * @param {Object} entry - The new log entry to insert.
+         * @param {number} entry.timestamp - The timestamp of the entry.
+         * @param {number} entry.index - The original index of the entry in the log file.
+         * 
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * const newEntry = { 
+         *   timestamp: 1600000000, 
+         *   index: 42, 
+         *   line: "Log message content"
+         * };
+         * insertIntoMatchingList(newEntry);
+         * 
+         * @note
+         * - Modifies tabList[currentLogType].logData.matchingList in-place.
+         * - Relies on the binarySearchWithIndex function to determine the insertion point.
+         * - Assumes that matchingList is already sorted before this function is called.
+         * - This function is typically called when processing log lines that match the current filters.
+         * 
+         * @sideEffect Modifies the matchingList array in the global tabList object.
+         * 
+         * @complexity O(n) due to the splice operation, where n is the length of the matchingList.
+         *             The search itself is O(log n), but the insertion is O(n).
+         */
         const insertIntoMatchingList = (entry) => {
             const index = binarySearchWithIndex(tabList[currentLogType].logData.matchingList, entry);
             tabList[currentLogType].logData.matchingList.splice(index, 0, entry);
         };
 
-        // Function to update the list of log lines matching the filters
+        /**
+         * Updates the list of log entries that match the current filters and time range.
+         * 
+         * This function rebuilds the matchingList from scratch based on the current log lines,
+         * active filters, and specified time range. It processes each log line, checks if it's
+         * within the time range, and then evaluates it against all active filters. Matching
+         * entries are inserted into the matchingList in sorted order.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After changing filters or time range
+         * updateMatchingList();
+         * // This will rebuild the matchingList based on current settings
+         * 
+         * @note
+         * - Clears the existing matchingList before rebuilding it.
+         * - Uses the log type-specific parseTimestamp function to extract timestamps.
+         * - Skips lines with invalid timestamps or those outside the specified time range.
+         * - Calls evaluateFilter for each line-filter combination.
+         * - Uses insertIntoMatchingList to maintain the sorted order of matching entries.
+         * - Calls adjustEventSpacing after updating the list to optimize the timeline display.
+         * 
+         * @sideEffect 
+         * - Modifies tabList[currentLogType].logData.matchingList.
+         * - Affects the timeline display through adjustEventSpacing.
+         * 
+         * @complexity O(n * m), where n is the number of log lines and m is the number of filters.
+         *             Each insertion is O(log p) where p is the current size of matchingList.
+         */
         const updateMatchingList = () => {
             tabList[currentLogType].logData.matchingList = [];
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
@@ -1101,10 +1334,39 @@
             adjustEventSpacing();
         };
 
-        const displayLogContent = () => {
+        /**
+         * Displays the filtered log content in the UI.
+         * 
+         * This function populates the log content container with log entries that match
+         * the current filters. It formats each log entry, applies styling based on the
+         * matching filter, and handles dynamic label generation. After displaying the log
+         * content, it updates the timeline visibility and redraws the timeline if necessary.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After updating filters or loading a new log file
+         * displayLogContent();
+         * 
+         * @note
+         * - Only displays entries from matchingList where the corresponding filter is checked (active).
+         * - Escapes HTML in log text to prevent XSS vulnerabilities.
+         * - Applies dynamic labels based on regex if specified in the filter.
+         * - Sets data attributes on each log line for index and filterIndex, useful for event handling.
+         * - Calls toggleTimelineVisibility() and potentially drawTimeline() after updating the log display.
+         * 
+         * @sideEffect
+         * - Modifies the DOM, specifically the element with ID '{currentLogType}LogContent'.
+         * - May trigger timeline redraw through drawTimeline().
+         * 
+         * @throws {Error} Implicitly, if the log content container is not found in the DOM.
+         */
+         const displayLogContent = () => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const logContentContainer = document.getElementById(`${currentLogType.toLowerCase()}LogContent`);
-            logContentContainer.innerHTML = '';
+            
+            const fragment = document.createDocumentFragment();
+
             for (let entry of tabList[currentLogType].logData.matchingList) {
                 if (tabList[currentLogType].logData.filters[entry.filterIndex].checked) {
                     const lineElement = document.createElement('div');
@@ -1112,14 +1374,13 @@
                     const logText = escapeHtml(entry.line.replace(entry.timestampStr, ''));
                     let label = tabList[currentLogType].logData.filters[entry.filterIndex].label;
 
-                    // Apply dynamic label if regex is provided
                     const dynamicLabelRegex = tabList[currentLogType].logData.filters[entry.filterIndex].dynamicLabelRegex;
                     if (dynamicLabelRegex) {
                         try {
                             const regex = new RegExp(dynamicLabelRegex);
                             const match = entry.line.match(regex);
                             if (match) {
-                                label += ' ' + match.slice(1).join(' '); // Append captured groups to the label
+                                label += ' ' + match.slice(1).join(' ');
                             }
                         } catch (e) {
                             console.error("Invalid dynamic label regex:", e);
@@ -1131,9 +1392,14 @@
                     lineElement.classList.add('log-line');
                     lineElement.dataset.index = entry.index;
                     lineElement.dataset.filterIndex = entry.filterIndex;
-                    logContentContainer.appendChild(lineElement);
+                    
+                    fragment.appendChild(lineElement);
                 }
             }
+
+            logContentContainer.innerHTML = '';
+            logContentContainer.appendChild(fragment);
+
             toggleTimelineVisibility();
             if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
                 drawTimeline();
