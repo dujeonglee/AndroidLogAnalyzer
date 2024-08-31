@@ -851,8 +851,6 @@
                 }
             }
         };
-        // Shared variables for application state
-        let currentLogType = Object.getOwnPropertyNames(tabList['Framework']);  // Currently active log type
 
         /**
          * Renders all tabs based on the provided tabList object.
@@ -976,14 +974,46 @@
             updateDisplayAndTimeline();
         };
 
-        // Rendoring tab contents
+        /**
+         * Renders tab content for all log types defined in the tabList.
+         * 
+         * This function iterates through each tab/log type in the tabList object and calls
+         * the corresponding rendorTabContent method to create the DOM elements for that tab.
+         *
+         * @param {Object} tabList - An object containing information about each tab/log type.
+         *                           Each entry should have a rendorTabContent method.
+         * 
+         * @example
+         * rendorAllTabContents(tabList);
+         * // This will create the content for all tabs (Framework, Kernel, Driver, etc.)
+         * 
+         * @note
+         * - Assumes each entry in tabList has a rendorTabContent method.
+         * - This function is typically called once during initial page setup.
+         */
         const rendorAllTabContents = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].rendorTabContent(tabName);
             });
         };
 
-        // Initialize log data
+        /**
+         * Initializes log data structures for all log types.
+         * 
+         * This function sets up the initial state of the log data for each tab/log type
+         * defined in the tabList. It calls the initializeLogData method for each tab type.
+         *
+         * @param {Object} tabList - An object containing information about each tab/log type.
+         *                           Each entry should have an initializeLogData method.
+         * 
+         * @example
+         * initializeAllLogData(tabList);
+         * // This will initialize log data structures for all log types
+         * 
+         * @note
+         * - Assumes each entry in tabList has an initializeLogData method.
+         * - This function is typically called once during application initialization.
+         */
         const initializeAllLogData = (tabList) => {
             Object.keys(tabList).forEach(tabName => {
                 tabList[tabName].initializeLogData(tabName);
@@ -1406,62 +1436,157 @@
             }
         };
 
-        // Function to activate the filter interface
+        /**
+         * Activates the filter interface for the current log type.
+         * 
+         * This function is called when a log file is first loaded. It makes the filter
+         * container visible and adds an initial filter to the interface.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After loading a log file for the first time
+         * activateFilters();
+         * 
+         * @note
+         * - Adds the 'active' class to the filter container to make it visible.
+         * - Calls addFilter() to add an initial filter to the interface.
+         * - Assumes the existence of a filter container element with ID '{currentLogType}FilterContainer'.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by changing the visibility of the filter container.
+         * - Adds a new filter to the interface.
+         * 
+         * @throws {Error} Implicitly, if the filter container element is not found in the DOM.
+         */
         const activateFilters = () => {
-            // Get the filter container element
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
-            // Add the 'active' class to show the filter interface
             filterContainer.classList.add('active');
-            // Add an initial filter to the interface
             addFilter();
         };
 
-        // Function to update the displayed log file information
+        /**
+         * Updates the displayed log file information in the UI.
+         * 
+         * This function updates the text content of the log file info element to show
+         * the name of the currently loaded log file for the active log type.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After loading a new log file
+         * updateLogFileInfo();
+         * 
+         * @note
+         * - Assumes the existence of an element with ID '{currentLogType}LogFileInfo' in the DOM.
+         * - Uses the logFileName property from tabList[currentLogType].logData.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by updating the text content of the log file info element.
+         * 
+         * @throws {Error} Implicitly, if the log file info element is not found in the DOM.
+         */
         const updateLogFileInfo = () => {
             const logFileInfo = document.getElementById(`${currentLogType.toLowerCase()}LogFileInfo`);
             logFileInfo.textContent = `Loaded ${currentLogType.toLowerCase()} log file: ${tabList[currentLogType].logData.logFileName}`;
         };
 
-        // Function to update the displayed filter file information
+        /**
+         * Updates the displayed filter file information in the UI.
+         * 
+         * This function updates the text content of the filter file info element to show
+         * the name of the currently loaded filter file.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * @global {string} filterFileName - The name of the currently loaded filter file.
+         * 
+         * @example
+         * // After importing a filter file
+         * updateFilterFileInfo();
+         * 
+         * @note
+         * - Assumes the existence of an element with ID '{currentLogType}FilterFileInfo' in the DOM.
+         * - Uses the global filterFileName variable.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by updating the text content of the filter file info element.
+         * 
+         * @throws {Error} Implicitly, if the filter file info element is not found in the DOM.
+         */
         const updateFilterFileInfo = () => {
             const filterFileInfo = document.getElementById(`${currentLogType.toLowerCase()}FilterFileInfo`);
-            // Update the text content with the name of the loaded filter file
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
         };
 
-        // Function to toggle the visibility of the timeline container
+        /**
+         * Toggles the visibility of the timeline container based on log data availability.
+         * 
+         * This function shows the timeline container if there are log lines and log events,
+         * and hides it otherwise.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After updating log data or changing filters
+         * toggleTimelineVisibility();
+         * 
+         * @note
+         * - Assumes the existence of an element with ID '{currentLogType}TimelineContainer' in the DOM.
+         * - Checks tabList[currentLogType].logData.logLines and logEvents for data availability.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by changing the display style of the timeline container.
+         * 
+         * @throws {Error} Implicitly, if the timeline container element is not found in the DOM.
+         */
         const toggleTimelineVisibility = () => {
-            // Get the timeline container element
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
-            // Check if there are log lines and log events
             if (tabList[currentLogType].logData.logLines.length > 0 && tabList[currentLogType].logData.logEvents.length > 0) {
-                // If both are present, show the timeline container
                 timelineContainer.style.display = 'block';
             } else {
-                // If either is missing, hide the timeline container
                 timelineContainer.style.display = 'none';
             }
         };
 
-        // Function to evaluate if a line matches a given filter
+        /**
+         * Evaluates whether a given log line matches a specific filter.
+         * 
+         * This function checks if a log line matches the criteria specified in a filter.
+         * It supports both regular expression and keyword-based filtering.
+         *
+         * @param {string} line - The log line to evaluate.
+         * @param {Object} filter - The filter object to apply.
+         * @param {string} filter.expression - The filter expression (regex or keywords).
+         * @param {boolean} filter.isRegex - Whether the expression is a regular expression.
+         * 
+         * @returns {boolean} True if the line matches the filter, false otherwise.
+         * 
+         * @example
+         * const line = "2023-06-01 10:00:00 ERROR: Connection failed";
+         * const filter = { expression: "ERROR", isRegex: false };
+         * const isMatch = evaluateFilter(line, filter);
+         * console.log(isMatch); // Output: true
+         * 
+         * @note
+         * - For non-regex filters, it splits the expression into words and quoted phrases.
+         * - Quoted phrases in non-regex filters are treated as exact match substrings.
+         * - Returns false if the filter expression is empty.
+         * - Logs an error and returns false if an invalid regex is provided.
+         * 
+         * @throws {Error} Implicitly, if an invalid regular expression is provided.
+         */
         const evaluateFilter = (line, filter) => {
-            // If the filter expression is empty, return false (no match)
             if (filter.expression === "") return false;
 
-            // Check if the filter is a regular expression
             if (filter.isRegex) {
                 try {
-                    // Create a RegExp object from the filter expression
                     const regex = new RegExp(filter.expression);
-                    // Test if the line matches the regex
                     return regex.test(line);
                 } catch (e) {
-                    // If the regex is invalid, log an error and return false
                     console.error("Invalid regex:", e);
                     return false;
                 }
             } else {
-                // Split the filter expression into words and quoted phrases
                 const keywords = [];
                 let currentPhrase = '';
                 let inQuotes = false;
@@ -1469,13 +1594,11 @@
                 filter.expression.split('').forEach(char => {
                     if (char === '"') {
                         if (inQuotes) {
-                            // End of quoted phrase
                             if (currentPhrase) keywords.push(currentPhrase);
                             currentPhrase = '';
                         }
                         inQuotes = !inQuotes;
                     } else if (char === ' ' && !inQuotes) {
-                        // Space outside quotes
                         if (currentPhrase) keywords.push(currentPhrase);
                         currentPhrase = '';
                     } else {
@@ -1484,20 +1607,39 @@
                 });
                 if (currentPhrase) keywords.push(currentPhrase);
 
-                // Check if all keywords/phrases are present in the line
                 return keywords.every(keyword => {
                     if (keyword.startsWith('"') && keyword.endsWith('"')) {
-                        // For quoted phrases, remove quotes and check for exact match
                         return line.includes(keyword.slice(1, -1));
                     } else {
-                        // For individual words, check if they're present
                         return line.includes(keyword);
                     }
                 });
             }
         };
 
-        // Function to add a new filter to the interface
+        /**
+         * Adds a new filter to the interface for the current log type.
+         * 
+         * This function creates a new filter object with default values, adds it to the
+         * filters array, renders the updated filters in the UI, and updates the log display.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // When user clicks "Add Filter" button
+         * addFilter();
+         * 
+         * @note
+         * - Only works if a log file is loaded (checks isLogFileLoaded).
+         * - Generates a random color for the new filter.
+         * - Calls renderFilters(), updateMatchingList(), and updateDisplayAndTimeline() to update the UI.
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.filters by adding a new filter.
+         * - Updates the UI to reflect the new filter.
+         * 
+         * @throws {Error} Implicitly, if DOM elements are not found during the UI update process.
+         */
         const addFilter = () => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             tabList[currentLogType].logData.filters.push({
@@ -1506,7 +1648,7 @@
                 color: '#' + Math.floor(Math.random()*16777215).toString(16),
                 label: '',
                 isRegex: false,
-                dynamicLabelRegex: '' // New field for dynamic label regex
+                dynamicLabelRegex: ''
             });
             renderFilters();
             updateMatchingList();
@@ -1514,7 +1656,30 @@
         };
 
 
-        // Function to remove a filter from the interface
+        /**
+         * Removes a filter from the interface for the current log type.
+         * 
+         * This function removes a specific filter from the filters array, re-renders the
+         * filters in the UI, and updates the log display to reflect the change.
+         *
+         * @param {HTMLElement} button - The remove button element that was clicked.
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // Typically called from an onclick event on a remove button
+         * <button onclick="removeFilter(this)">Remove</button>
+         * 
+         * @note
+         * - Only works if a log file is loaded (checks isLogFileLoaded).
+         * - Finds the index of the filter to remove based on the button's position in the DOM.
+         * - Calls renderFilters(), updateMatchingList(), and updateDisplayAndTimeline() to update the UI.
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.filters by removing a filter.
+         * - Updates the UI to reflect the removed filter.
+         * 
+         * @throws {Error} Implicitly, if DOM elements are not found during the UI update process.
+         */
         const removeFilter = (button) => {
             if (!tabList[currentLogType].logData.isLogFileLoaded) return;
             const filterDiv = button.closest('.filter-container');
@@ -1525,24 +1690,39 @@
             updateDisplayAndTimeline();
         };
 
-        // Function to export filters to a JSON file
+        /**
+         * Exports the current set of filters to a JSON file.
+         * 
+         * This function prepares the current filters for export, converts them to a JSON string,
+         * and uses the File System Access API to save them as a file on the user's system.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // Typically called when user clicks an "Export Filters" button
+         * await exportFilters();
+         * 
+         * @note
+         * - Uses the File System Access API, which may not be supported in all browsers.
+         * - Escapes regex expressions to prevent issues when importing.
+         * - Generates a default filename of "filter.json".
+         * 
+         * @throws {Error} If there's an issue during the file saving process.
+         * 
+         * @sideEffect
+         * - Creates a file on the user's system.
+         * - Logs success or failure to the console.
+         * - Shows an alert to the user if an error occurs.
+         */
         async function exportFilters() {
             try {
-                // Prepare filters for export, escaping regex expressions
                 const filtersToExport = tabList[currentLogType].logData.filters.map(filter => ({
                     ...filter,
-                    // Escape regex expressions to prevent issues when importing
                     expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression,
                     dynamicLabelRegex: escapeRegex(filter.dynamicLabelRegex)
                 }));
-
-                // Convert filters to JSON string with 2-space indentation
                 const data = JSON.stringify(filtersToExport, null, 2);
-
-                // Create a Blob with the JSON data
                 const blob = new Blob([data], { type: 'application/json' });
-
-                // Set options for the file save dialog
                 const options = {
                     types: [{
                         description: 'JSON File',
@@ -1550,34 +1730,64 @@
                     }],
                     suggestedName: `filter.json` // Default filename
                 };
-
-                // Show the save file picker and get the file handle
                 const fileHandle = await window.showSaveFilePicker(options);
-
-                // Create a writable stream from the file handle
                 const writable = await fileHandle.createWritable();
-
-                // Write the blob data to the file
                 await writable.write(blob);
-
-                // Close the writable stream to save the file
                 await writable.close();
-
                 console.log("File saved successfully");
             } catch (err) {
-                // Log any errors that occur during the process
                 console.error("Error exporting file:", err);
-                // Alert the user about the error
                 alert("An error occurred while saving the file. Please try again.");
             }
         };
 
-        // Helper function to escape backslashes in regex strings
+        /**
+         * Escapes backslashes in regex strings to prevent issues when saving and reloading.
+         * 
+         * This helper function doubles all backslashes in a string, which is necessary
+         * when saving regex patterns to a file and then reloading them later.
+         *
+         * @param {string} regex - The regex string to escape.
+         * @returns {string} The escaped regex string.
+         * 
+         * @example
+         * const escaped = escapeRegex("\\d+");
+         * console.log(escaped); // Output: "\\\\d+"
+         * 
+         * @note
+         * - This function is used in the exportFilters function to prepare regex patterns for saving.
+         */
         const escapeRegex = (regex) => {
             return regex.replace(/\\/g, '\\\\');
         };
 
-        // Function to import filters from a JSON file
+        /**
+         * Imports filters from a JSON file and applies them to the current log type.
+         * 
+         * This function reads a selected JSON file, parses its contents as filters,
+         * and applies these filters to the current log analysis. It also updates the UI
+         * to reflect the newly imported filters.
+         *
+         * @param {Event} event - The file input change event.
+         * @global {string} currentLogType - The currently active log type.
+         * @global {string} filterFileName - Variable to store the name of the imported filter file.
+         * 
+         * @example
+         * // Typically used as an onchange handler for a file input
+         * <input type="file" onchange="importFilters(event)">
+         * 
+         * @note
+         * - Expects a JSON file with a specific structure matching the filter format.
+         * - Unescapes regex strings after importing.
+         * - Updates the UI by calling renderFilters(), updateFilterFileInfo(), updateMatchingList(), and updateDisplayAndTimeline().
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.filters with the imported filters.
+         * - Updates the global filterFileName variable.
+         * - Updates the UI to reflect the new filters.
+         * 
+         * @throws {Error} Implicitly, if the JSON parsing fails or if the file structure is incorrect.
+         */
         const importFilters = (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -1585,31 +1795,65 @@
             filterFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
-                // Parse the JSON data
                 tabList[currentLogType].logData.filters = JSON.parse(e.target.result);
-                // Unescape regex strings
                 tabList[currentLogType].logData.filters.forEach(filter => {
                     if (filter.isRegex) {
                         filter.expression = unescapeRegex(filter.expression);
                     }
                     filter.dynamicLabelRegex = unescapeRegex(filter.dynamicLabelRegex);
                 });
-                // Update the UI and data
                 renderFilters();
                 updateFilterFileInfo();
                 updateMatchingList();
                 updateDisplayAndTimeline();
             };
-            // Read the file as text
             reader.readAsText(file);
         };
 
-        // Helper function to unescape backslashes in regex strings
+        /**
+         * Unescapes backslashes in regex strings after importing from a file.
+         * 
+         * This helper function reverses the escaping done by escapeRegex, converting
+         * doubled backslashes back to single backslashes.
+         *
+         * @param {string} regex - The escaped regex string to unescape.
+         * @returns {string} The unescaped regex string.
+         * 
+         * @example
+         * const unescaped = unescapeRegex("\\\\d+");
+         * console.log(unescaped); // Output: "\\d+"
+         * 
+         * @note
+         * - This function is used in the importFilters function to restore regex patterns after loading from a file.
+         */
         const unescapeRegex = (regex) => {
             return regex.replace(/\\(.)/g, '$1');
         };
 
-        // Function to render all filters in the UI
+        /**
+         * Renders all active filters in the UI for the current log type.
+         * 
+         * This function creates and updates the DOM elements for each filter in the
+         * filters array. It generates input fields for filter properties and adds
+         * event listeners for user interactions.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After adding, removing, or importing filters
+         * renderFilters();
+         * 
+         * @note
+         * - Clears existing filter elements before rendering.
+         * - Creates input elements for filter expression, color, label, and dynamic label regex.
+         * - Includes a toggle for regex mode and a remove button for each filter.
+         * - Uses the escapeHtml function to prevent XSS vulnerabilities.
+         * 
+         * @sideEffect
+         * - Modifies the DOM, specifically the element with ID '{currentLogType}Filters'.
+         * 
+         * @throws {Error} Implicitly, if the filter container element is not found in the DOM.
+         */
         const renderFilters = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}Filters`);
             filterContainer.innerHTML = '';
@@ -1635,7 +1879,23 @@
             }
         };
 
-        // Helper function to escape HTML special characters
+        /**
+ * Escapes special HTML characters to prevent XSS vulnerabilities.
+ * 
+ * This helper function converts special characters to their HTML entity equivalents,
+ * making it safe to insert the resulting string into HTML content.
+ *
+ * @param {string} unsafe - The potentially unsafe string to escape.
+ * @returns {string} The escaped safe string.
+ * 
+ * @example
+ * const safe = escapeHtml("<script>alert("XSS")");
+ * console.log(safe); // Output: "&lt;script&gt;alert(&quot;XSS&quot;)"
+ * 
+ * @note
+ * - Escapes &, <, >, ", and ' characters.
+ * - Used in renderFilters and other functions that insert user-provided content into the DOM.
+ */
         const escapeHtml = (unsafe) => {
             return unsafe
                 .replace(/&/g, "&amp;")
@@ -1645,6 +1905,32 @@
                 .replace(/'/g, "&#039;");
         };
 
+        /**
+         * Handles the opening of a specific log type tab.
+         * 
+         * This function is called when a user clicks on a tab to switch between different log types.
+         * It updates the UI to display the content for the selected log type and hides others.
+         *
+         * @param {Event} evt - The event object from the click event.
+         * @param {string} logType - The type of log to display (e.g., 'Framework', 'Kernel', etc.).
+         * @global {string} currentLogType - Updated to reflect the newly selected log type.
+         * 
+         * @example
+         * // Typically used in the onclick attribute of tab buttons
+         * <button onclick="openLogType(event, 'Framework')">Framework Log</button>
+         * 
+         * @note
+         * - Updates the global currentLogType variable.
+         * - Hides all tab content and deactivates all tab links.
+         * - Shows the selected tab content and activates the corresponding tab link.
+         * - Calls the openLogTypePost function specific to the selected log type.
+         * 
+         * @sideEffect
+         * - Modifies the DOM to show/hide tab content and update active tab styles.
+         * - Changes the global currentLogType.
+         * 
+         * @throws {Error} Implicitly, if the required DOM elements are not found.
+         */
         const openLogType = (evt, logType) => {
             var i, tabcontent, tablinks;
 
@@ -1663,7 +1949,28 @@
             tabList[currentLogType].openLogTypePost();
         };
 
-        // Function to update UI for the current log type
+        /**
+         * Updates the UI for the current log type after a change.
+         * 
+         * This function refreshes various UI components specific to the current log type,
+         * such as log file information, filters, and potentially the log display and timeline.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After switching to a new log type or loading a new log file
+         * updateUIForCurrentLogType();
+         * 
+         * @note
+         * - Calls updateLogFileInfo() to refresh the displayed log file information.
+         * - Calls renderFilters() to update the filter UI.
+         * - If a log file is loaded, also calls updateDisplayAndTimeline() to refresh the log display and timeline.
+         * 
+         * @sideEffect
+         * - Updates various parts of the UI based on the current log type and loaded data.
+         * 
+         * @throws {Error} Implicitly, if any of the called functions encounter DOM-related errors.
+         */
         const updateUIForCurrentLogType = () => {
             updateLogFileInfo();
             renderFilters();
@@ -1672,14 +1979,53 @@
             }
         };
 
-        // Helper function to format time elapsed in seconds and milliseconds
+        /**
+         * Formats a time elapsed value into a string representation.
+         * 
+         * This helper function takes a time value in milliseconds and formats it into
+         * a string showing seconds and milliseconds.
+         *
+         * @param {number} timeElapsed - The time elapsed in milliseconds.
+         * @returns {string} A formatted string representing the time elapsed.
+         * 
+         * @example
+         * const formatted = formatTimeElapsed(3500);
+         * console.log(formatted); // Output: "3.500s"
+         * 
+         * @note
+         * - Formats the output as "seconds.milliseconds" with milliseconds padded to 3 digits.
+         * - Used in the drawTimeline function to display time differences between events.
+         */
         const formatTimeElapsed = (timeElapsed) => {
             const seconds = Math.floor(timeElapsed / 1000);
             const milliseconds = timeElapsed % 1000;
             return `${seconds}.${milliseconds.toString().padStart(3, '0')}s`;
         };
 
-        // Function to draw the timeline on the canvas
+        /**
+         * Draws the timeline on the canvas for the current log type.
+         * 
+         * This function renders a visual timeline of log events on a canvas element.
+         * It plots events as points on a horizontal line, with timestamps and labels.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After updating log events or changing the timeline view
+         * drawTimeline();
+         * 
+         * @note
+         * - Requires a canvas element with ID '{currentLogType}TimelineCanvas'.
+         * - Uses the logEvents array from tabList[currentLogType].logData.
+         * - Adjusts canvas size based on the number of events and container width.
+         * - Draws event points, timestamps, labels, and time elapsed between events.
+         * - Uses the log type-specific fillTimestamp function for timestamp formatting.
+         * 
+         * @sideEffect
+         * - Modifies the canvas element, drawing the timeline visualization.
+         * 
+         * @throws {Error} Implicitly, if the canvas element is not found or if canvas operations fail.
+         */
         const drawTimeline = () => {
             let container = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             let canvas = document.getElementById(`${currentLogType.toLowerCase()}TimelineCanvas`);
@@ -1723,7 +2069,30 @@
             }
         };
 
-        // Function to highlight a specific log line
+        /**
+         * Highlights a specific log line in the UI and scrolls to it.
+         * 
+         * This function is typically called when a user interacts with the timeline,
+         * allowing them to quickly locate and focus on a specific log entry.
+         *
+         * @param {number} index - The index of the log line to highlight.
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // When a user clicks on a point in the timeline
+         * highlightLogLine(42);
+         * 
+         * @note
+         * - Removes highlighting from all other log lines.
+         * - Adds a 'highlighted' class to the selected log line.
+         * - Scrolls the view to center on the highlighted line.
+         * - Assumes the existence of a log content container with ID '{currentLogType}LogContent'.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by changing CSS classes and scrolling the view.
+         * 
+         * @throws {Error} Implicitly, if the log content container or the specific log line elements are not found.
+         */
         const highlightLogLine = (index) => {
             const logContent = document.getElementById(`${currentLogType.toLowerCase()}LogContent`);
             const logLines = logContent.children;
@@ -1739,16 +2108,35 @@
             }
         };
 
-        // Function to update the matching list for a specific filter
+        /**
+         * Updates the matching list for a specific filter.
+         * 
+         * This function re-evaluates all log lines against a single filter and updates
+         * the matching list accordingly. It's typically called when a filter is modified.
+         *
+         * @param {number} filterIndex - The index of the filter to update.
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After modifying a specific filter
+         * updateFilterMatchingList(2);
+         * 
+         * @note
+         * - Removes existing entries for the specified filter from the matching list.
+         * - Re-evaluates all log lines against the updated filter.
+         * - Uses the insertIntoMatchingList function to maintain sorted order.
+         * - Calls adjustEventSpacing to optimize the timeline display.
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.matchingList.
+         * 
+         * @complexity O(n), where n is the number of log lines.
+         */
         const updateFilterMatchingList = (filterIndex) => {
-            // Remove existing entries for this filter
             tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== filterIndex);
-            // Iterate through all log lines
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
-                // Parse timestamp from the log line
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
-                if (timestampStr === "") continue; // Skip lines without a valid timestamp
-                // If the line matches the filter, add it to the matching list
+                if (timestampStr === "") continue;
                 if (evaluateFilter(line, tabList[currentLogType].logData.filters[filterIndex])) {
                     insertIntoMatchingList({
                         timestamp,
@@ -1762,7 +2150,29 @@
             adjustEventSpacing();
         };
 
-        // Function to update both the display and timeline
+        /**
+         * Updates both the log display and timeline.
+         * 
+         * This function serves as a central point to refresh the visual representation
+         * of the log data, including the filtered log entries and the timeline.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After any change that affects the log display or timeline
+         * updateDisplayAndTimeline();
+         * 
+         * @note
+         * - Calls updateLogEvents to refresh the log events data.
+         * - Calls displayLogContent to update the displayed log entries.
+         * - Conditionally calls drawTimeline if the timeline is currently visible.
+         * 
+         * @sideEffect
+         * - Updates the DOM with new log content.
+         * - May redraw the timeline canvas.
+         * 
+         * @throws {Error} Implicitly, if any of the called functions encounter DOM-related errors.
+         */
         const updateDisplayAndTimeline = () => {
             updateLogEvents();
             displayLogContent();
@@ -1771,7 +2181,28 @@
             }
         };
 
-        // Function to update log events based on the matching list and active filters
+        /**
+         * Updates the log events based on the current matching list and active filters.
+         * 
+         * This function refreshes the logEvents array, which is used for timeline visualization.
+         * It filters the matching list based on active filters and the current time range.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // Before redrawing the timeline
+         * updateLogEvents();
+         * 
+         * @note
+         * - Filters entries based on whether their corresponding filter is checked (active).
+         * - Applies the current time range filter.
+         * - Handles dynamic label generation if a dynamicLabelRegex is specified for a filter.
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.logEvents.
+         * 
+         * @throws {Error} If an invalid dynamic label regex is provided (error is caught and logged).
+         */
         const updateLogEvents = () => {
             tabList[currentLogType].logData.logEvents = tabList[currentLogType].logData.matchingList.filter(entry => 
                 tabList[currentLogType].logData.filters[entry.filterIndex].checked &&
@@ -1801,7 +2232,29 @@
             });
         };
 
-        // Function to initialize timeline interactions
+        /**
+         * Initializes timeline interactions for a specific log type.
+         * 
+         * This function sets up event listeners for user interactions with the timeline,
+         * such as clicking on events, showing tooltips, and zooming.
+         *
+         * @param {string} logType - The type of log for which to initialize timeline interactions.
+         * 
+         * @example
+         * initializeTimelineInteractions('Framework');
+         * 
+         * @note
+         * - Sets up click events to highlight corresponding log lines.
+         * - Implements mousemove and mouseout events for tooltip functionality.
+         * - Adds a wheel event listener for zooming the timeline.
+         * - Assumes the existence of canvas and tooltip elements in the DOM.
+         * 
+         * @sideEffect
+         * - Adds event listeners to the timeline canvas element.
+         * - May modify the DOM when interactions occur (e.g., highlighting log lines, showing tooltips).
+         * 
+         * @throws {Error} Implicitly, if required DOM elements are not found.
+         */
         const initializeTimelineInteractions = (logType) => {
             const container = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
             const canvas = document.getElementById(`${logType.toLowerCase()}TimelineCanvas`);
@@ -1850,12 +2303,52 @@
             });
         };
 
+        /**
+         * Adjusts the spacing between events on the timeline.
+         * 
+         * This function calculates and sets an appropriate spacing between events on the timeline,
+         * ensuring that the timeline is neither too compressed nor too spread out.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         * 
+         * @example
+         * // After updating the log events or changing the zoom level
+         * adjustEventSpacing();
+         * 
+         * @note
+         * - Calculates spacing based on the number of log events and current zoom level.
+         * - Ensures spacing is within a reasonable range (between 10 and 65535 / number of events).
+         * - Modifies the eventSpacing property of the current log type's data.
+         * 
+         * @sideEffect
+         * - Updates tabList[currentLogType].logData.eventSpacing.
+         */
         const adjustEventSpacing = () => {
             tabList[currentLogType].logData.eventSpacing = Math.max(10, Math.min(0xFFFF / tabList[currentLogType].logData.logEvents.length, tabList[currentLogType].logData.eventSpacing)); // Limit zoom level
         };
 
         /**
-         * Tracepoint functions
+         * Resets the UI for the Tracepoint log type.
+         * 
+         * This function clears and resets various UI elements specific to the Tracepoint log analysis,
+         * preparing the interface for a new log file or analysis session.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // Before loading a new Tracepoint log file
+         * resetTracepointUI();
+         * 
+         * @note
+         * - Resets the analysis dropdown to its initial state.
+         * - Clears and hides the graph type selection and chart container.
+         * - Reinitializes the logData object for the Tracepoint log type.
+         * 
+         * @sideEffect
+         * - Modifies several DOM elements related to Tracepoint analysis.
+         * - Resets the tabList[currentLogType].logData object.
+         * 
+         * @throws {Error} Implicitly, if required DOM elements are not found.
          */
          const resetTracepointUI = () => {
             // Reset the analysis dropdown
@@ -1900,6 +2393,32 @@
             document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`).style.display = 'none';
         };
 
+        /**
+         * Creates a new chart using Chart.js library.
+         * 
+         * This function initializes and returns a new Chart.js chart object with specified configurations.
+         * It's primarily used for creating charts in the Tracepoint analysis.
+         *
+         * @param {CanvasRenderingContext2D} ctx - The 2D rendering context for the canvas element.
+         * @param {Array} datasets - The data to be plotted on the chart.
+         * @param {string} metric - The metric name for the chart (used in title and labels).
+         * @returns {Chart} A new Chart.js chart object.
+         * 
+         * @example
+         * const ctx = document.getElementById('myChart').getContext('2d');
+         * const datasets = [{ label: 'Data 1', data: [1, 2, 3] }];
+         * const chart = createChart(ctx, datasets, 'CPU Usage');
+         * 
+         * @note
+         * - Configures various chart options including responsive design, animations, tooltips, and legend.
+         * - Sets up custom click behavior for legend items to toggle dataset visibility.
+         * - Uses the global currentLogType to access and update visibility states.
+         * 
+         * @sideEffect
+         * - May update tabList[currentLogType].logData.tcpProbeDatasetVisibilityState when legend items are clicked.
+         * 
+         * @requires Chart.js library to be loaded in the global scope.
+         */
         const createChart = (ctx, datasets, metric) => {
             return new Chart(ctx, {
                 type: 'line',
@@ -2007,7 +2526,32 @@
             });
         };
 
-        // Function to update charts based on selected metrics
+        /**
+         * Updates charts based on selected metrics for the Tracepoint analysis.
+         * 
+         * This function creates or updates charts for each selected metric in the Tracepoint analysis.
+         * It manages the creation, update, and visibility of chart elements in the UI.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // After selecting or deselecting metrics in the Tracepoint analysis
+         * updateCharts();
+         * 
+         * @note
+         * - Creates new chart elements if they don't exist, or updates existing ones.
+         * - Manages visibility states for different datasets (sum, average, individual sockets).
+         * - Uses the createChart function to initialize new charts.
+         * - Hides charts for unselected metrics.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by creating, updating, or hiding chart elements.
+         * - Updates tabList[currentLogType].logData.tcpProbeDatasetVisibilityState.
+         * 
+         * @throws {Error} Implicitly, if required DOM elements are not found or if Chart.js operations fail.
+         * 
+         * @requires Chart.js library to be loaded in the global scope.
+         */
         const updateCharts = () => {
             const selectedMetrics = tabList[currentLogType].logData.selectedMetrics;
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
@@ -2091,6 +2635,29 @@
             });
         };
 
+        /**
+         * Parses the Tracepoint log data and organizes it for analysis.
+         * 
+         * This function processes the raw log lines of a Tracepoint log, extracting relevant
+         * metrics and organizing them by socket for further analysis and visualization.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // After loading a new Tracepoint log file
+         * parseTracepointLog();
+         * 
+         * @note
+         * - Extracts metrics like outstanding_bytes, snd_cwnd, ssthresh, etc.
+         * - Organizes data by socket_cookie for individual socket analysis.
+         * - Calculates derived metrics like outstanding_bytes from snd_nxt and snd_una.
+         * - Uses a regex to parse each log line for relevant information.
+         * 
+         * @sideEffect
+         * - Populates tabList[currentLogType].logData.socketData with parsed and organized log data.
+         * 
+         * @throws {Error} Implicitly, if the log data format is unexpected or if parsing fails.
+         */
         const parseTracepointLog = () => {
             const logData = tabList[currentLogType].logData;
             const metrics = ['outstanding_bytes', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt', 'snd_nxt', 'snd_una'];
@@ -2137,6 +2704,33 @@
             logData.socketData = socketData;
         };
 
+        /**
+         * Calculates plot data for Tracepoint analysis charts.
+         * 
+         * This function processes the parsed socket data and computes various metrics
+         * for plotting, including sum and average values across all sockets and 
+         * individual socket data.
+         *
+         * @param {Object} socketData - The parsed socket data from parseTracepointLog.
+         * @param {number} samplingInterval - The interval at which to sample data points.
+         * @returns {Object} An object containing calculated plot data for each metric.
+         * 
+         * @example
+         * const plotData = calculatePlotData(tabList[currentLogType].logData.socketData, 0.01);
+         * 
+         * @note
+         * - Calculates metrics including outstanding_bytes, pumping_rate, acking_rate, etc.
+         * - Computes sum and average values across all visible sockets.
+         * - Handles special calculations for pumping_rate and acking_rate.
+         * - Uses the sampling interval to bucket data points.
+         * 
+         * @global {string} currentLogType - Used to access visibility state of datasets.
+         * 
+         * @sideEffect
+         * - May initialize visibility states in tabList[currentLogType].logData.tcpProbeDatasetVisibilityState.
+         * 
+         * @complexity O(n * m), where n is the number of data points and m is the number of sockets.
+         */
         const calculatePlotData = (socketData, samplingInterval) => {
             const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
             const plotData = {};
@@ -2260,7 +2854,24 @@
             return plotData;
         };
 
-        // Helper function to generate colors for different datasets
+        /**
+         * Generates a color for chart datasets.
+         * 
+         * This function returns a color from a predefined array of colors, cycling through
+         * the array if the index exceeds the number of available colors.
+         *
+         * @param {number} index - The index for which to generate a color.
+         * @returns {string} A string representing an RGB color.
+         * 
+         * @example
+         * const color = getColor(5);
+         * console.log(color); // Output: 'rgb(44, 160, 44)' (for example)
+         * 
+         * @note
+         * - Uses a fixed array of 20 distinct colors.
+         * - Cycles through the array using modulo operation if index exceeds array length.
+         * - Colors are chosen for their distinctiveness and suitability for data visualization.
+         */
         const getColor = (index) => {
             const colors = [
                 'rgb(31, 119, 180)',   // Blue
@@ -2287,6 +2898,27 @@
             return colors[index % colors.length];
         };
 
+        /**
+         * Toggles the visibility of Tracepoint-specific UI containers.
+         * 
+         * This function shows or hides UI elements specific to Tracepoint analysis
+         * based on whether a log file is loaded and the selected analysis type.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // After loading a Tracepoint log or changing analysis type
+         * toggleTracepointContainers();
+         * 
+         * @note
+         * - Checks if a log file is loaded and if 'tracepoint' analysis is selected.
+         * - Toggles visibility of graph type selection and chart container elements.
+         * 
+         * @sideEffect
+         * - Modifies the 'display' style of DOM elements related to Tracepoint analysis.
+         * 
+         * @throws {Error} Implicitly, if required DOM elements are not found.
+         */
         const toggleTracepointContainers = () => {
             const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
             const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
@@ -2299,7 +2931,29 @@
             }
         };
 
-        // Function to render the analysis dropdown
+        /**
+         * Renders the analysis dropdown for Tracepoint logs.
+         * 
+         * This function creates and populates a dropdown menu that allows users to select
+         * different types of analysis for Tracepoint logs.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // After loading a Tracepoint log file
+         * renderAnalysisDropdown();
+         * 
+         * @note
+         * - Creates a select element with options for different analysis types.
+         * - Currently includes options for 'Tracepoint' and 'Host Interface Protocol' analysis.
+         * - Adds an event listener to handle selection changes.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by adding or updating the analysis dropdown element.
+         * - Sets up an event listener for the dropdown.
+         * 
+         * @throws {Error} Implicitly, if the container element for the dropdown is not found in the DOM.
+         */
         function renderAnalysisDropdown() {
             const container = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
             container.innerHTML = `
@@ -2314,7 +2968,30 @@
             document.getElementById('analysisType').addEventListener('change', handleAnalysisSelection);
         }
 
-        // Function to handle analysis selection
+        /**
+         * Handles the selection of an analysis type for Tracepoint logs.
+         * 
+         * This function is called when the user selects an analysis type from the dropdown.
+         * It updates the UI and initiates the appropriate analysis based on the selection.
+         *
+         * @param {Event} event - The change event from the dropdown selection.
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // This function is typically set as an event listener
+         * analysisDropdown.addEventListener('change', handleAnalysisSelection);
+         * 
+         * @note
+         * - Updates the selectedAnalysis in the logData object.
+         * - For 'tracepoint' analysis, it sets up the UI and initiates data parsing and chart creation.
+         * - For 'hip' (Host Interface Protocol) analysis, it's currently a placeholder for future implementation.
+         * 
+         * @sideEffect
+         * - May modify tabList[currentLogType].logData.selectedAnalysis.
+         * - Triggers UI updates and data processing based on the selected analysis type.
+         * 
+         * @throws {Error} Implicitly, if any of the called functions encounter errors.
+         */
         function handleAnalysisSelection(event) {
             const selectedAnalysis = event.target.value;
             tabList[currentLogType].logData.selectedAnalysis = selectedAnalysis;
@@ -2331,7 +3008,30 @@
             }
         }
 
-        // Function to render graph type selection
+        /**
+         * Renders the graph type selection UI for Tracepoint analysis.
+         * 
+         * This function creates checkboxes for each available metric in Tracepoint analysis,
+         * allowing users to select which metrics to display in charts.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // After selecting 'tracepoint' analysis type
+         * renderGraphTypeSelection();
+         * 
+         * @note
+         * - Creates a sampling interval input for adjusting data granularity.
+         * - Generates checkboxes for metrics like outstanding_bytes, pumping_rate, etc.
+         * - Sets up event listeners for checkbox changes and sampling interval changes.
+         * - Initializes the selectedMetrics array with all available metrics.
+         * 
+         * @sideEffect
+         * - Modifies the DOM by adding or updating the graph type selection elements.
+         * - Initializes tabList[currentLogType].logData.selectedMetrics.
+         * 
+         * @throws {Error} Implicitly, if the container element for graph type selection is not found.
+         */
         const renderGraphTypeSelection = () => {
             const container = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
             const metrics = ['outstanding_bytes', 'pumping_rate', 'acking_rate', 'snd_cwnd', 'ssthresh', 'snd_wnd', 'rcv_wnd', 'srtt'];
@@ -2363,6 +3063,29 @@
             tabList[currentLogType].logData.selectedMetrics = [...metrics];
         };
 
+        /**
+         * Handles changes to the sampling interval for Tracepoint analysis.
+         * 
+         * This function is called when the user modifies the sampling interval input.
+         * It updates the sampling interval and recalculates the plot data accordingly.
+         *
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // This function is typically set as an event listener
+         * samplingIntervalInput.addEventListener('change', handleSamplingIntervalChange);
+         * 
+         * @note
+         * - Validates the new sampling interval (must be between 0 and 1).
+         * - Updates the samplingInterval in the logData object.
+         * - Triggers re-parsing of the log file and updating of charts with the new interval.
+         * 
+         * @sideEffect
+         * - May update tabList[currentLogType].logData.samplingInterval.
+         * - Triggers re-parsing of log data and redrawing of charts.
+         * 
+         * @throws {Error} If an invalid sampling interval is entered (shows an alert to the user).
+         */
         const handleSamplingIntervalChange = () => {
             const samplingIntervalInput = document.getElementById('samplingInterval');
             const newSamplingInterval = parseFloat(samplingIntervalInput.value);
@@ -2381,7 +3104,28 @@
         };
 
 
-        // Update the handleCheckboxChange function
+        /**
+         * Handles checkbox changes for metric selection in Tracepoint analysis.
+         * 
+         * This function updates the list of selected metrics when a user checks or unchecks
+         * a metric checkbox, and then updates the charts accordingly.
+         *
+         * @param {string} metric - The name of the metric whose checkbox was changed.
+         * @param {boolean} isChecked - Whether the checkbox is now checked or unchecked.
+         * @global {string} currentLogType - The currently active log type (assumed to be 'Tracepoint').
+         * 
+         * @example
+         * // This function is typically set as an event listener for metric checkboxes
+         * metricCheckbox.addEventListener('change', () => handleCheckboxChange(metricName, metricCheckbox.checked));
+         * 
+         * @note
+         * - Adds or removes the metric from the selectedMetrics array based on the checkbox state.
+         * - Calls updateCharts to reflect the changes in the displayed charts.
+         * 
+         * @sideEffect
+         * - Modifies tabList[currentLogType].logData.selectedMetrics.
+         * - Triggers updating of displayed charts.
+         */
         const handleCheckboxChange = (metric, isChecked) => {
             const index = tabList[currentLogType].logData.selectedMetrics.indexOf(metric);
             if (isChecked && index === -1) {
