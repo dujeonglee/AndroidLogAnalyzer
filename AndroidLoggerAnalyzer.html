@@ -238,9 +238,9 @@
                 presetFilter: {
                     // Array of predefined filters for Framework logs
                     'Basic Filter': [
-                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "isRegex": false},
-                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "isRegex": false},
-                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "isRegex": false}
+                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "dynamicLabelRegex": "", "isRegex": false},
+                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "dynamicLabelRegex": "", "isRegex": false},
+                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "dynamicLabelRegex": "", "isRegex": false}
                     ]
                 },
                 openLogTypePost: function(){
@@ -377,7 +377,7 @@
                 presetFilter: {
                     // Array of predefined filters for Framework logs
                     'WLBT': [
-                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "isRegex": false}
+                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "WLBT Log", "dynamicLabelRegex": "", "isRegex": false}
                     ]
                 },
                 openLogTypePost: function(){
@@ -505,7 +505,7 @@
                 presetFilter: {
                     // Array of predefined filters for Framework logs
                     'WLBT': [
-                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "isRegex": false}
+                        {"checked": true, "expression": "wlbt", "color": "#ff0000", "label": "wlbt", "dynamicLabelRegex": "", "isRegex": false}
                     ]
                 },
                 openLogTypePost: function(){
@@ -632,8 +632,8 @@
             UDI: {
                 presetFilter: {
                     'MLME / MA': [
-                        {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "isRegex": false},
-                        {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "isRegex": false}
+                        {"checked": true, "expression": "mlme", "color": "#ff0000", "label": "MLME", "dynamicLabelRegex": "", "isRegex": false},
+                        {"checked": true, "expression": "ma", "color": "#000000", "label": "MA", "dynamicLabelRegex": "", "isRegex": false}
                     ]
                 },
                 openLogTypePost: function(){
@@ -972,6 +972,10 @@
                     // Update filter label
                     tabList[currentLogType].logData.filters[index].label = event.target.value;
                     updateDisplayAndTimeline();
+                } else if (event.target.placeholder === 'Dynamic label regex') {
+                    // Update dynamic label regex
+                    tabList[currentLogType].logData.filters[index].dynamicLabelRegex = event.target.value;
+                    updateDisplayAndTimeline();
                 }
             }
             // Handle color input changes
@@ -1106,7 +1110,23 @@
                     const lineElement = document.createElement('div');
                     const timestamp = entry.timestampStr;
                     const logText = escapeHtml(entry.line.replace(entry.timestampStr, ''));
-                    lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${tabList[currentLogType].logData.filters[entry.filterIndex].color}">[${tabList[currentLogType].logData.filters[entry.filterIndex].label}]</span> ${logText}`;
+                    let label = tabList[currentLogType].logData.filters[entry.filterIndex].label;
+
+                    // Apply dynamic label if regex is provided
+                    const dynamicLabelRegex = tabList[currentLogType].logData.filters[entry.filterIndex].dynamicLabelRegex;
+                    if (dynamicLabelRegex) {
+                        try {
+                            const regex = new RegExp(dynamicLabelRegex);
+                            const match = entry.line.match(regex);
+                            if (match) {
+                                label += ' ' + match.slice(1).join(' '); // Append captured groups to the label
+                            }
+                        } catch (e) {
+                            console.error("Invalid dynamic label regex:", e);
+                        }
+                    }
+
+                    lineElement.innerHTML = `${timestamp} <span class="filter-label" style="color: ${tabList[currentLogType].logData.filters[entry.filterIndex].color}">[${label}]</span> ${logText}`;
                     lineElement.style.color = 'black';
                     lineElement.classList.add('log-line');
                     lineElement.dataset.index = entry.index;
@@ -1219,7 +1239,8 @@
                 expression: '',
                 color: '#' + Math.floor(Math.random()*16777215).toString(16),
                 label: '',
-                isRegex: false
+                isRegex: false,
+                dynamicLabelRegex: '' // New field for dynamic label regex
             });
             renderFilters();
             updateMatchingList();
@@ -1245,7 +1266,8 @@
                 const filtersToExport = tabList[currentLogType].logData.filters.map(filter => ({
                     ...filter,
                     // Escape regex expressions to prevent issues when importing
-                    expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression
+                    expression: filter.isRegex ? escapeRegex(filter.expression) : filter.expression,
+                    dynamicLabelRegex: escapeRegex(filter.dynamicLabelRegex)
                 }));
 
                 // Convert filters to JSON string with 2-space indentation
@@ -1304,6 +1326,7 @@
                     if (filter.isRegex) {
                         filter.expression = unescapeRegex(filter.expression);
                     }
+                    filter.dynamicLabelRegex = unescapeRegex(filter.dynamicLabelRegex);
                 });
                 // Update the UI and data
                 renderFilters();
@@ -1332,6 +1355,7 @@
                     <input type="text" placeholder="Filter expression" value="${escapeHtml(filter.expression)}">
                     <input type="color" value="${filter.color}">
                     <input type="text" placeholder="Filter label" value="${escapeHtml(filter.label)}">
+                    <input type="text" placeholder="Dynamic label regex" value="${escapeHtml(filter.dynamicLabelRegex)}">
                     <div class="toggle-container">
                         <label class="toggle-switch">
                             <input type="checkbox" ${filter.isRegex ? 'checked' : ''}>
@@ -1487,13 +1511,28 @@
                 tabList[currentLogType].logData.filters[entry.filterIndex].checked &&
                 entry.timestamp >= tabList[currentLogType].logData.startTime &&
                 entry.timestamp <= tabList[currentLogType].logData.endTime
-            ).map(entry => ({
-                timestamp: entry.timestamp,
-                color: tabList[currentLogType].logData.filters[entry.filterIndex].color,
-                index: entry.index,
-                filterIndex: entry.filterIndex,
-                label: tabList[currentLogType].logData.filters[entry.filterIndex].label
-            }));
+            ).map(entry => {
+                let label = tabList[currentLogType].logData.filters[entry.filterIndex].label;
+                const dynamicLabelRegex = tabList[currentLogType].logData.filters[entry.filterIndex].dynamicLabelRegex;
+                if (dynamicLabelRegex) {
+                    try {
+                        const regex = new RegExp(dynamicLabelRegex);
+                        const match = entry.line.match(regex);
+                        if (match) {
+                            label += ' ' + match.slice(1).join(' '); // Append captured groups to the label
+                        }
+                    } catch (e) {
+                        console.error("Invalid dynamic label regex:", e);
+                    }
+                }
+                return {
+                    timestamp: entry.timestamp,
+                    color: tabList[currentLogType].logData.filters[entry.filterIndex].color,
+                    index: entry.index,
+                    filterIndex: entry.filterIndex,
+                    label: label
+                };
+            });
         };
 
         // Function to initialize timeline interactions
