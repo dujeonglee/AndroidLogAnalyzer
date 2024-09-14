@@ -1315,53 +1315,98 @@
 
         /**
          * Updates the list of log entries that match the current filters and time range.
+         * This function ensures that each log line is matched by only one filter,
+         * prioritizing the filter with the longest matching content.
          * 
-         * This function rebuilds the matchingList from scratch based on the current log lines,
-         * active filters, and specified time range. It processes each log line, checks if it's
-         * within the time range, and then evaluates it against all active filters. Matching
-         * entries are inserted into the matchingList in sorted order.
-         *
          * @global {string} currentLogType - The currently active log type.
          * 
-         * @example
-         * // After changing filters or time range
-         * updateMatchingList();
-         * // This will rebuild the matchingList based on current settings
-         * 
-         * @note
+         * @description
          * - Clears the existing matchingList before rebuilding it.
-         * - Uses the log type-specific parseTimestamp function to extract timestamps.
-         * - Skips lines with invalid timestamps or those outside the specified time range.
-         * - Calls evaluateFilter for each line-filter combination.
-         * - Uses insertIntoMatchingList to maintain the sorted order of matching entries.
-         * - Calls adjustEventSpacing after updating the list to optimize the timeline display.
+         * - Iterates through all log lines within the specified time range.
+         * - For each line, finds the best matching filter based on match length.
+         * - Inserts the best match into the matchingList, maintaining sorted order.
+         * - Adjusts event spacing for timeline display after processing all lines.
          * 
-         * @sideEffect 
+         * @sideEffect
          * - Modifies tabList[currentLogType].logData.matchingList.
          * - Affects the timeline display through adjustEventSpacing.
          * 
          * @complexity O(n * m), where n is the number of log lines and m is the number of filters.
-         *             Each insertion is O(log p) where p is the current size of matchingList.
          */
-        const updateMatchingList = () => {
+         const updateMatchingList = () => {
             tabList[currentLogType].logData.matchingList = [];
+            const filters = tabList[currentLogType].logData.filters;
+
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
                 if (timestamp < tabList[currentLogType].logData.startTime || timestamp > tabList[currentLogType].logData.endTime) continue;
-                for (let [filterIndex, filter] of tabList[currentLogType].logData.filters.entries()) {
+
+                let bestMatch = null;
+                let bestMatchLength = 0;
+
+                for (let [filterIndex, filter] of filters.entries()) {
                     if (evaluateFilter(line, filter)) {
-                        insertIntoMatchingList({
-                            timestamp,
-                            timestampStr,
-                            line,
-                            index: lineIndex,
-                            filterIndex
-                        });
+                        const matchLength = getFilterMatchLength(line, filter);
+                        if (matchLength > bestMatchLength) {
+                            bestMatch = {
+                                timestamp,
+                                timestampStr,
+                                line,
+                                index: lineIndex,
+                                filterIndex
+                            };
+                            bestMatchLength = matchLength;
+                        }
                     }
+                }
+
+                if (bestMatch) {
+                    insertIntoMatchingList(bestMatch);
                 }
             }
             adjustEventSpacing();
+        };
+
+        /**
+         * Calculates the total length of matching content for a given filter on a log line.
+         * This helper function is used to determine which filter provides the best match for a line.
+         *
+         * @param {string} line - The log line to evaluate.
+         * @param {Object} filter - The filter to apply.
+         * @param {string} filter.expression - The filter expression (regex or keywords).
+         * @param {boolean} filter.isRegex - Whether the expression is a regular expression.
+         * @returns {number} The total length of matching content.
+         * 
+         * @description
+         * - For regex filters: Calculates the total length of all regex matches in the line.
+         * - For keyword filters: Sums the lengths of all matching keywords or phrases.
+         * - Handles quoted phrases in keyword filters as exact matches.
+         * 
+         * @example
+         * const line = "Error: Connection failed on port 8080";
+         * const filter = { expression: "Error Connection", isRegex: false };
+         * const matchLength = getFilterMatchLength(line, filter);
+         * console.log(matchLength); // Output: 14 (5 for "Error" + 10 for "Connection")
+         * 
+         * @complexity O(n) for regex, where n is the length of the line.
+         *              O(m) for keywords, where m is the number of keywords in the filter.
+         */
+        const getFilterMatchLength = (line, filter) => {
+            if (filter.isRegex) {
+                const match = line.match(new RegExp(filter.expression, 'g'));
+                return match ? match.join('').length : 0;
+            } else {
+                const keywords = filter.expression.match(/\S+/g) || [];
+                return keywords.reduce((total, keyword) => {
+                    if (keyword.startsWith('"') && keyword.endsWith('"')) {
+                        keyword = keyword.slice(1, -1);
+                        return line.includes(keyword) ? total + keyword.length : total;
+                    } else {
+                        return line.includes(keyword) ? total + keyword.length : total;
+                    }
+                }, 0);
+            }
         };
 
         /**
@@ -2109,44 +2154,72 @@
         };
 
         /**
-         * Updates the matching list for a specific filter.
-         * 
-         * This function re-evaluates all log lines against a single filter and updates
-         * the matching list accordingly. It's typically called when a filter is modified.
+         * Updates the matching list for a specific filter that has been modified.
+         * This function ensures consistency with the updateMatchingList function,
+         * maintaining the rule that each log line is matched by only one filter.
          *
-         * @param {number} filterIndex - The index of the filter to update.
+         * @param {number} updatedFilterIndex - The index of the filter that was updated.
          * @global {string} currentLogType - The currently active log type.
          * 
-         * @example
-         * // After modifying a specific filter
-         * updateFilterMatchingList(2);
-         * 
-         * @note
-         * - Removes existing entries for the specified filter from the matching list.
-         * - Re-evaluates all log lines against the updated filter.
-         * - Uses the insertIntoMatchingList function to maintain sorted order.
-         * - Calls adjustEventSpacing to optimize the timeline display.
+         * @description
+         * - Removes existing entries for the updated filter from the matching list.
+         * - Iterates through all log lines within the specified time range.
+         * - Checks if the updated filter matches each line.
+         * - Compares new matches against existing matches in the list.
+         * - Updates the matching list with the best match for each line.
+         * - Maintains the rule of one filter per line, prioritizing longer matches.
          * 
          * @sideEffect
          * - Modifies tabList[currentLogType].logData.matchingList.
+         * - May replace existing matches with new ones from the updated filter.
          * 
          * @complexity O(n), where n is the number of log lines.
          */
-        const updateFilterMatchingList = (filterIndex) => {
-            tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== filterIndex);
+         const updateFilterMatchingList = (updatedFilterIndex) => {
+            const filters = tabList[currentLogType].logData.filters;
+
+            // Remove entries for the updated filter
+            tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== updatedFilterIndex);
+
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
-                if (evaluateFilter(line, tabList[currentLogType].logData.filters[filterIndex])) {
-                    insertIntoMatchingList({
+                if (timestamp < tabList[currentLogType].logData.startTime || timestamp > tabList[currentLogType].logData.endTime) continue;
+
+                let bestMatch = null;
+                let bestMatchLength = 0;
+
+                // Check if the updated filter matches this line
+                if (evaluateFilter(line, filters[updatedFilterIndex])) {
+                    const matchLength = getFilterMatchLength(line, filters[updatedFilterIndex]);
+                    bestMatch = {
                         timestamp,
                         timestampStr,
                         line,
                         index: lineIndex,
-                        filterIndex
-                    });
+                        filterIndex: updatedFilterIndex
+                    };
+                    bestMatchLength = matchLength;
+                }
+
+                // Check if this line is already matched by another filter
+                const existingMatchIndex = tabList[currentLogType].logData.matchingList.findIndex(entry => entry.index === lineIndex);
+
+                if (existingMatchIndex !== -1) {
+                    const existingMatch = tabList[currentLogType].logData.matchingList[existingMatchIndex];
+                    const existingMatchLength = getFilterMatchLength(line, filters[existingMatch.filterIndex]);
+
+                    // If the new match is better, replace the existing one
+                    if (bestMatch && bestMatchLength > existingMatchLength) {
+                        tabList[currentLogType].logData.matchingList.splice(existingMatchIndex, 1);
+                        insertIntoMatchingList(bestMatch);
+                    }
+                } else if (bestMatch) {
+                    // If there's no existing match and we found a match with the updated filter, add it
+                    insertIntoMatchingList(bestMatch);
                 }
             }
+
             adjustEventSpacing();
         };
 
