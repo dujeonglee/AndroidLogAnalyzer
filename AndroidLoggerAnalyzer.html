@@ -213,6 +213,13 @@
             width: 150px;
             margin-right: 10px;
         }
+
+        /* Add style for the new JSON input area */
+        .jsonInput {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -265,6 +272,8 @@
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
                         <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
                             <h2>Filters</h2>
+                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                             <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
                                 <option value="">Select a preset filter set</option>
                             </select>
@@ -401,6 +410,8 @@
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
                         <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
                             <h2>Filters</h2>
+                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                             <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
                                 <option value="">Select a preset filter set</option>
                             </select>
@@ -529,6 +540,8 @@
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
                         <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
                             <h2>Filters</h2>
+                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                             <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
                                 <option value="">Select a preset filter set</option>
                             </select>
@@ -657,6 +670,8 @@
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
                         <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
                             <h2>Filters</h2>
+                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                             <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
                                 <option value="">Select a preset filter set</option>
                             </select>
@@ -1564,6 +1579,29 @@
             const filterFileInfo = document.getElementById(`${currentLogType.toLowerCase()}FilterFileInfo`);
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
         };
+
+        function updateFiltersFromJson() {
+            const jsonInput = document.getElementById(`${currentLogType.toLowerCase()}jsonInput`);
+            try {
+                const newFilters = JSON.parse(jsonInput.value);
+                if (Array.isArray(newFilters)) {
+                    tabList[currentLogType].logData.filters = newFilters.map(filter => ({
+                        ...filter,
+                        expression: filter.isRegex ? unescapeRegex(filter.expression) : filter.expression,
+                        dynamicLabelRegex: unescapeRegex(filter.dynamicLabelRegex)
+                    }));
+                    renderFilters();
+                    updateMatchingList();
+                    updateDisplayAndTimeline();
+                    alert("Filters updated successfully!");
+                } else {
+                    throw new Error("Invalid JSON format. Expected an array of filter objects.");
+                }
+            } catch (error) {
+                alert("Error updating filters: " + error.message);
+            }
+            jsonInput.value = ''; // Clear the input after processing
+        }
 
         /**
          * Toggles the visibility of the timeline container based on log data availability.
