@@ -1579,7 +1579,52 @@
             const filterFileInfo = document.getElementById(`${currentLogType.toLowerCase()}FilterFileInfo`);
             filterFileInfo.textContent = `Loaded filter file: ${filterFileName}`;
         };
-
+        /**
+         * Updates the log filters by parsing and processing JSON input from a textarea element.
+         * This function handles the conversion of filter configurations from JSON format into
+         * the application's internal filter structure.
+         *
+         * Workflow:
+         * 1. Retrieves JSON input from the textarea specific to current log type
+         * 2. Parses the JSON and validates it's an array
+         * 3. Processes each filter object, handling regex expressions
+         * 4. Updates the global filter state
+         * 5. Triggers UI updates to reflect the new filters
+         *
+         * Expected JSON Structure:
+         * [
+         *   {
+         *     expression: string,        // The filter pattern/text
+         *     isRegex: boolean,         // Whether the expression is a regular expression
+         *     dynamicLabelRegex: string // Regex for dynamic label generation
+         *     // ... other filter properties
+         *   }
+         * ]
+         *
+         * Side Effects:
+         * - Updates tabList[currentLogType].logData.filters
+         * - Triggers re-rendering of filter UI
+         * - Updates matching list and display timeline
+         * - Clears the JSON input field after processing
+         *
+         * Error Handling:
+         * - Validates JSON format and structure
+         * - Shows alert for successful update
+         * - Displays error message if JSON is invalid or has wrong structure
+         *
+         * Dependencies:
+         * - Requires unescapeRegex() function for processing regex strings
+         * - Relies on global currentLogType variable
+         * - Expects tabList global object structure
+         *
+         * Related Functions:
+         * - renderFilters(): Updates the filter UI
+         * - updateMatchingList(): Refreshes the list of matching log entries
+         * - updateDisplayAndTimeline(): Updates the visual timeline display
+         *
+         * Note: The function assumes the presence of a textarea element with ID format:
+         * `${currentLogType.toLowerCase()}jsonInput`
+         */
         function updateFiltersFromJson() {
             const jsonInput = document.getElementById(`${currentLogType.toLowerCase()}jsonInput`);
             try {
@@ -1887,8 +1932,8 @@
                     }
                     filter.dynamicLabelRegex = unescapeRegex(filter.dynamicLabelRegex);
                 });
-                renderFilters();
                 updateFilterFileInfo();
+                renderFilters();
                 updateMatchingList();
                 updateDisplayAndTimeline();
             };
@@ -1965,22 +2010,22 @@
         };
 
         /**
- * Escapes special HTML characters to prevent XSS vulnerabilities.
- * 
- * This helper function converts special characters to their HTML entity equivalents,
- * making it safe to insert the resulting string into HTML content.
- *
- * @param {string} unsafe - The potentially unsafe string to escape.
- * @returns {string} The escaped safe string.
- * 
- * @example
- * const safe = escapeHtml("<script>alert("XSS")");
- * console.log(safe); // Output: "&lt;script&gt;alert(&quot;XSS&quot;)"
- * 
- * @note
- * - Escapes &, <, >, ", and ' characters.
- * - Used in renderFilters and other functions that insert user-provided content into the DOM.
- */
+          * Escapes special HTML characters to prevent XSS vulnerabilities.
+          *
+          * This helper function converts special characters to their HTML entity equivalents,
+          * making it safe to insert the resulting string into HTML content.
+          *
+          * @param {string} unsafe - The potentially unsafe string to escape.
+          * @returns {string} The escaped safe string.
+          *
+          * @example
+          * const safe = escapeHtml("<script>alert("XSS")");
+          * console.log(safe); // Output: "&lt;script&gt;alert(&quot;XSS&quot;)"
+          *
+          * @note
+          * - Escapes &, <, >, ", and ' characters.
+          * - Used in renderFilters and other functions that insert user-provided content into the DOM.
+          */
         const escapeHtml = (unsafe) => {
             return unsafe
                 .replace(/&/g, "&amp;")
