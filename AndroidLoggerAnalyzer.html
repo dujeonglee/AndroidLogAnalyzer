@@ -1080,14 +1080,21 @@
             else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
                     tabList[currentLogType].logData.filters[index].expression = event.target.value;
-                    updateFilterMatchingList(index);
-                    updateDisplayAndTimeline();
+                    if (tabList[currentLogType].logData.filters[index].label !== '') {
+                        updateFilterMatchingList(index);
+                        updateDisplayAndTimeline();
+                    }
                 } else if (event.target.placeholder === 'Filter label') {
                     tabList[currentLogType].logData.filters[index].label = event.target.value;
-                    updateDisplayAndTimeline();
+                    if (tabList[currentLogType].logData.filters[index].expression !== '') {
+                        updateFilterMatchingList(index);
+                        updateDisplayAndTimeline();
+                    }
                 } else if (event.target.placeholder === 'Dynamic label regex') {
                     tabList[currentLogType].logData.filters[index].dynamicLabelRegex = event.target.value;
-                    updateDisplayAndTimeline();
+                    if (tabList[currentLogType].logData.filters[index].expression !== '') {
+                        updateDisplayAndTimeline();
+                    }
                 }
             }
             else if (event.target.type === 'color') {
@@ -1775,7 +1782,7 @@
             tabList[currentLogType].logData.filters.push({
                 checked: true,
                 expression: '',
-                color: '#' + Math.floor(Math.random()*16777215).toString(16),
+                color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
                 label: '',
                 isRegex: false,
                 dynamicLabelRegex: ''
