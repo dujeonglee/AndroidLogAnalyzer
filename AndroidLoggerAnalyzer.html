@@ -1076,28 +1076,22 @@
                     updateFilterMatchingList(index);
                     updateDisplayAndTimeline();
                 }
-            }
-            else if (event.target.type === 'text') {
+            } else if (event.target.type === 'text') {
                 if (event.target.placeholder === 'Filter expression') {
                     tabList[currentLogType].logData.filters[index].expression = event.target.value;
-                    if (tabList[currentLogType].logData.filters[index].label !== '') {
-                        updateFilterMatchingList(index);
+                    updateFilterMatchingList(index);
+                    if (tabList[currentLogType].logData.filters[index].label !== '')
                         updateDisplayAndTimeline();
-                    }
                 } else if (event.target.placeholder === 'Filter label') {
                     tabList[currentLogType].logData.filters[index].label = event.target.value;
-                    if (tabList[currentLogType].logData.filters[index].expression !== '') {
-                        updateFilterMatchingList(index);
+                    if (tabList[currentLogType].logData.filters[index].expression !== '')
                         updateDisplayAndTimeline();
-                    }
                 } else if (event.target.placeholder === 'Dynamic label regex') {
                     tabList[currentLogType].logData.filters[index].dynamicLabelRegex = event.target.value;
-                    if (tabList[currentLogType].logData.filters[index].expression !== '') {
+                    if (tabList[currentLogType].logData.filters[index].expression !== '')
                         updateDisplayAndTimeline();
-                    }
                 }
-            }
-            else if (event.target.type === 'color') {
+            } else if (event.target.type === 'color') {
                 tabList[currentLogType].logData.filters[index].color = event.target.value;
                 updateDisplayAndTimeline();
             }
