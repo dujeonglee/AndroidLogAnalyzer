@@ -1389,6 +1389,72 @@
         };
 
         /**
+         * Tokenizes an input string into an array of tokens, handling both quoted phrases and individual words.
+         * 
+         * @param {string} input - The input string to tokenize
+         * @returns {string[]} Array of tokens extracted from the input
+         * 
+         * @description
+         * This function tokenizes a string with special handling for quoted phrases:
+         * - Quoted phrases are kept as single tokens including the quotes
+         * - Spaces outside quotes act as token separators
+         * - Empty tokens are automatically filtered out
+         * - Leading/trailing whitespace is trimmed from each token
+         * 
+         * @example
+         * tokenizeString('word1 "quoted phrase" word2');
+         * // Returns: ['word1', '"quoted phrase"', 'word2']
+         * 
+         * tokenizeString('  multiple   spaces  ');
+         * // Returns: ['multiple', 'spaces']
+         */
+        const tokenizeString = (input) => {
+            const tokens = [];
+            let currentToken = '';
+            let inQuotes = false;
+
+            // Helper function to add non-empty tokens
+            const addToken = (token) => {
+                const trimmed = token.trim();
+                if (trimmed) {
+                    tokens.push(trimmed);
+                }
+            };
+
+            for (let i = 0; i < input.length; i++) {
+                const char = input[i];
+
+                if (char === '"') {
+                    if (inQuotes) {
+                        // End of quoted token
+                        currentToken += char;
+                        addToken(currentToken);
+                        currentToken = '';
+                        inQuotes = false;
+                    } else {
+                        // Start of quoted token
+                        // Add any accumulated unquoted token first
+                        addToken(currentToken);
+                        currentToken = char;
+                        inQuotes = true;
+                    }
+                } else if (char === ' ' && !inQuotes) {
+                    // Space outside quotes - token boundary
+                    addToken(currentToken);
+                    currentToken = '';
+                } else {
+                    // Any other character
+                    currentToken += char;
+                }
+            }
+
+            // Add final token if any
+            addToken(currentToken);
+
+            return tokens;
+        }
+
+        /**
          * Calculates the total length of matching content for a given filter on a log line.
          * This helper function is used to determine which filter provides the best match for a line.
          *
@@ -1417,7 +1483,7 @@
                 const match = line.match(new RegExp(filter.expression, 'g'));
                 return match ? match.join('').length : 0;
             } else {
-                const keywords = filter.expression.match(/\S+/g) || [];
+                const keywords = tokenizeString(filter.expression)
                 return keywords.reduce((total, keyword) => {
                     if (keyword.startsWith('"') && keyword.endsWith('"')) {
                         keyword = keyword.slice(1, -1);
@@ -1720,26 +1786,7 @@
                     return false;
                 }
             } else {
-                const keywords = [];
-                let currentPhrase = '';
-                let inQuotes = false;
-
-                filter.expression.split('').forEach(char => {
-                    if (char === '"') {
-                        if (inQuotes) {
-                            if (currentPhrase) keywords.push(currentPhrase);
-                            currentPhrase = '';
-                        }
-                        inQuotes = !inQuotes;
-                    } else if (char === ' ' && !inQuotes) {
-                        if (currentPhrase) keywords.push(currentPhrase);
-                        currentPhrase = '';
-                    } else {
-                        currentPhrase += char;
-                    }
-                });
-                if (currentPhrase) keywords.push(currentPhrase);
-
+                const keywords = tokenizeString(filter.expression)
                 return keywords.every(keyword => {
                     if (keyword.startsWith('"') && keyword.endsWith('"')) {
                         return line.includes(keyword.slice(1, -1));
