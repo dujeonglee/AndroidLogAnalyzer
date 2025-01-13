@@ -1355,6 +1355,8 @@
             tabList[currentLogType].logData.matchingList = [];
             const filters = tabList[currentLogType].logData.filters;
 
+            if (filters.length === 0) return;
+
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
