@@ -495,18 +495,16 @@
                     initializeTimelineInteractions(tabName);
                 },
                 parseTimestamp: function(line) {
-                    let match = line.match(/\[(\d+\.\d+)\]/);
+                    let match = line.match(/\[\s*(\d+\.\d{6})\]/);
                     if (match) {
-                        const [, timestamp] = match;
-                        return [timestamp, parseFloat(timestamp)];
+                        return [match[1], parseFloat(match[1])];
                     }
                     return ["", null];
                 },
                 parseTimestampRangeInput: function(line) {
-                    let match = line.match(/^(\d+\.\d+)/);
+                    let match = line.match(/\[\s*(\d+\.\d{6})\]/);
                     if (match) {
-                        const [, timestamp] = match;
-                        return [timestamp, parseFloat(timestamp)];
+                        return [match[1], parseFloat(match[1])];
                     }
                     return ["", null];
                 },
@@ -625,18 +623,16 @@
                     initializeTimelineInteractions(tabName);
                 },
                 parseTimestamp: function(line) {
-                    let match = line.match(/\<\d+\>\[(\d+\.\d+)\]/);
+                    let match = line.match(/\[\s*(\d+\.\d{6})\]/);
                     if (match) {
-                        const [, timestamp] = match;
-                        return [timestamp, parseFloat(timestamp)];
+                        return [match[1], parseFloat(match[1])];
                     }
                     return ["", null];
                 },
                 parseTimestampRangeInput: function(line) {
-                    let match = line.match(/^(\d+\.\d+)/);
+                    let match = line.match(/\[\s*(\d+\.\d{6})\]/);
                     if (match) {
-                        const [, timestamp] = match;
-                        return [timestamp, parseFloat(timestamp)];
+                        return [match[1], parseFloat(match[1])];
                     }
                     return ["", null];
                 },
@@ -856,10 +852,10 @@
                     }
                 },
                 parseTimestamp: function(line) {
-                    let match = line.match(/(\b\d+\.\d+\b):/);
+                    let match = line.match(/\[\d+\]\s+[a-zA-Z0-9\.]{5}\s+(\d+\.\d{6})/);
+
                     if (match) {
-                        const [timestamp, ] = match;
-                        return [timestamp, parseFloat(timestamp)];
+                        return [match[1], parseFloat(match[1])];
                     }
                     return ["", null];
                 },
@@ -3327,6 +3323,115 @@
         // Open Framework tab by default and Initialize the UI
         document.getElementsByClassName('tablinks')[0].click();
         openLogType({ currentTarget: document.querySelector('.tablinks') }, 'Framework');
+
+        const is_core_functions_regressed = () => {
+            {
+                console.log("should correctly tokenize string with spaces")
+                const input = 'word1 word2 word3';
+                const expected_output = ['word1', 'word2', 'word3'];
+
+                const output = tokenizeString(input);
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                console.log("should handle quoted phrases")
+                const input = 'word1 "quoted phrase" word2';
+                const expected_output = ['word1', 'quoted phrase', 'word2'];
+
+                const output = tokenizeString(input);
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                console.log("should handle multiple spaces")
+                const input = '  multiple   spaces  ';
+                const expected_output = ['multiple', 'spaces'];
+
+                const output = tokenizeString(input);
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+
+            {
+                const input = '07-12 15:13:09.666   365   365 I snet_event_log: [121035042,-1,]';
+                const expected_output = tabList['Framework'].parseTimestamp('07-12 15:13:09.666')
+                const output = tabList['Framework'].parseTimestamp(input)
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                const input = '[91650.848537]  [ 7:  binder:1836_4: 7645] CAM_INFO: CAM-SENSOR: cam_check_sensor_type: 323: [AM_DBG] sensor_type : 2, 0x34cb ';
+                const expected_output = tabList['Kernel'].parseTimestamp('[91650.848537]')
+                const output = tabList['Kernel'].parseTimestamp(input)
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                const input = '2024-07-19.09:32:39 <6>[584388.774967] [c7] [P] [mxman] :: wlbt: __mxman_open: Number of wlan_users=0 wpan_users=0 Maxwell state=1';
+                const expected_output = tabList['Driver'].parseTimestamp('[584388.774967]')
+                const output = tabList['Driver'].parseTimestamp(input)
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                const input = '2024/07/19-09:32:39.887 debug_word12_ind data:{}';
+                const expected_output = tabList['UDI'].parseTimestamp('2024/07/19-09:32:39.887')
+                const output = tabList['UDI'].parseTimestamp(input)
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            {
+                const input = '     rild_exynos-760     [000] bNs5. 584398.691851: tcp_probe: family=AF_INET6 src=[::ffff:10.62.237.240]:42802 dest=[::ffff:142.251.8.94]:80 mark=0x130064 data_len=0 snd_nxt=0x865db9ae snd_una=0x865db8db snd_cwnd=10 ssthresh=2147483647 snd_wnd=65160 srtt=4364 rcv_wnd=65536 sock_cookie=6062';
+                const expected_output = tabList['Tracepoint'].parseTimestamp('     rild_exynos-760     [000] bNs5. 584398.691851:')
+                const output = tabList['Tracepoint'].parseTimestamp(input)
+
+                if (JSON.stringify(expected_output) === JSON.stringify(output)) {
+                    console.log("Pass:", output, expected_output)
+                } else {
+                    console.log("Fail:", output, expected_output)
+                    return true;
+                }
+            }
+            return false;
+        };
+        if (is_core_functions_regressed() === true)
+            alert("There is regression in core funtion! Please report to Dujeong");
     </script>
 </body>
 </html>
