@@ -3553,6 +3553,281 @@
         };
         if (is_core_functions_regressed() === true)
             alert("There is regression in core funtion! Please report to Dujeong");
+
+        // Add CSS for progress indicator
+        const addProgressStyles = () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                .progress-container {
+                    width: 100%;
+                    background-color: #f1f1f1;
+                    border-radius: 4px;
+                    margin: 10px 0;
+                    display: none;
+                }
+
+                .progress-bar {
+                    height: 20px;
+                    background-color: #4CAF50;
+                    border-radius: 4px;
+                    width: 0%;
+                    transition: width 0.2s;
+                    text-align: center;
+                    line-height: 20px;
+                    color: white;
+                }
+
+                .loading-message {
+                    margin-top: 5px;
+                    font-style: italic;
+                    color: #666;
+                }
+
+                .cancel-button {
+                    margin-top: 5px;
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+
+                .cancel-button:hover {
+                    background-color: #d32f2f;
+                }
+            `;
+            document.head.appendChild(style);
+        };
+
+        // Add progress bar elements to each tab content
+        const addProgressElements = (tabName) => {
+            const logFileInfo = document.getElementById(`${tabName.toLowerCase()}LogFileInfo`);
+            if (!logFileInfo) return;
+
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-container';
+            progressContainer.id = `${tabName.toLowerCase()}ProgressContainer`;
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            progressBar.id = `${tabName.toLowerCase()}ProgressBar`;
+
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'loading-message';
+            loadingMessage.id = `${tabName.toLowerCase()}LoadingMessage`;
+
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'cancel-button';
+            cancelButton.id = `${tabName.toLowerCase()}CancelButton`;
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', () => {
+                if (tabList[tabName].logData.loadCancelled !== undefined) {
+                    tabList[tabName].logData.loadCancelled = true;
+                }
+            });
+
+            progressContainer.appendChild(progressBar);
+            progressContainer.appendChild(loadingMessage);
+            progressContainer.appendChild(cancelButton);
+
+            logFileInfo.parentNode.insertBefore(progressContainer, logFileInfo.nextSibling);
+        };
+
+        // Initialize loading state in logData
+        const initializeProgressiveLoading = (tabName) => {
+            tabList[tabName].logData.loadCancelled = false;
+            tabList[tabName].logData.isLoading = false;
+            tabList[tabName].logData.loadedChunks = [];
+            tabList[tabName].logData.processingWorker = null;
+        };
+
+        // Update progress bar and message
+        const updateProgressUI = (tabName, percent, message) => {
+            const progressBar = document.getElementById(`${tabName.toLowerCase()}ProgressBar`);
+            const progressContainer = document.getElementById(`${tabName.toLowerCase()}ProgressContainer`);
+            const loadingMessage = document.getElementById(`${tabName.toLowerCase()}LoadingMessage`);
+
+            if (progressBar && progressContainer && loadingMessage) {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = `${percent}%`;
+                progressBar.textContent = `${Math.round(percent)}%`;
+                loadingMessage.textContent = message || 'Processing...';
+            }
+        };
+
+        // Hide progress UI when done
+        const hideProgressUI = (tabName) => {
+            const progressContainer = document.getElementById(`${tabName.toLowerCase()}ProgressContainer`);
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+        };
+
+        // Read a chunk of file as text
+        const readChunkAsText = (blob) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = event => resolve(event.target.result);
+                reader.onerror = error => reject(error);
+                reader.readAsText(blob);
+            });
+        };
+
+        // Process a chunk of log lines
+        const processLogChunk = (tabName, lines) => {
+            // Add the new lines to the existing array
+            tabList[tabName].logData.logLines = tabList[tabName].logData.logLines.concat(lines);
+
+            // Just update UI with the current progress, don't process filters yet
+            updateLogFileInfo();
+        };
+
+        // Finalize log processing after all chunks are loaded
+        const finalizeLogProcessing = (tabName) => {
+            const logData = tabList[tabName].logData;
+
+            // Set the loaded flag to true
+            logData.isLogFileLoaded = true;
+            logData.isLoading = false;
+
+            // Update time range inputs based on the complete log file
+            updateTimeRangeInputs(tabName);
+
+            // If this is the first log file loaded, activate filters
+            if (logData.filters.length === 0) {
+                activateFilters();
+            }
+
+            // Process the complete log data
+            updateMatchingList();
+            updateDisplayAndTimeline();
+
+            // Update UI state
+            toggleContainers();
+            hideProgressUI(tabName);
+        };
+
+        // Progressive file loading and parsing
+        async function loadLogFileProgressively(tabName, file) {
+            const logData = tabList[tabName].logData;
+
+            // Reset loading state
+            logData.isLoading = true;
+            logData.loadCancelled = false;
+            logData.logLines = [];
+            logData.matchingList = new MatchingEntries(); // Use the optimized data structure
+            logData.logFileName = file.name;
+            logData.isLogFileLoaded = false; // Will be set to true when fully loaded
+
+            // Show progress UI
+            updateProgressUI(tabName, 0, 'Preparing to load file...');
+
+            // Define chunk size (adjust based on testing)
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            const fileSize = file.size;
+            let offset = 0;
+            let lastLine = '';
+
+            try {
+                while (offset < fileSize && !logData.loadCancelled) {
+                    // Calculate end position for this chunk (handle last chunk)
+                    const end = Math.min(offset + chunkSize, fileSize);
+
+                    // Read a chunk of the file
+                    const chunk = file.slice(offset, end);
+                    const text = await readChunkAsText(chunk);
+
+                    // Split into lines and handle line breaks across chunks
+                    let lines = text.split('\n');
+
+                    // Combine with the last line from previous chunk
+                    if (offset > 0 && lines.length > 0) {
+                        lines[0] = lastLine + lines[0];
+                    }
+
+                    // Save last line of this chunk in case it's incomplete
+                    if (end < fileSize) {
+                        lastLine = lines.pop() || '';
+                    }
+
+                    // Process this chunk of lines
+                    processLogChunk(tabName, lines);
+
+                    // Update progress
+                    offset = end;
+                    const percent = (offset / fileSize) * 100;
+                    updateProgressUI(tabName, percent, `Loaded ${formatFileSize(offset)} of ${formatFileSize(fileSize)}`);
+
+                    // Allow UI to update by yielding to the event loop
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                if (logData.loadCancelled) {
+                    updateProgressUI(tabName, 100, 'Loading cancelled');
+                    setTimeout(() => hideProgressUI(tabName), 1500);
+                    return;
+                }
+
+                // Process the final accumulated data
+                updateProgressUI(tabName, 100, 'Finalizing and processing log data...');
+                await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to update
+
+                finalizeLogProcessing(tabName);
+            } catch (error) {
+                console.error('Error loading file:', error);
+                updateProgressUI(tabName, 100, `Error: ${error.message}`);
+                setTimeout(() => hideProgressUI(tabName), 3000);
+            }
+        }
+
+        // Format file size for display
+        const formatFileSize = (bytes) => {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        // Update the file input event listeners to use progressive loading
+        const updateFileInputListeners = (tabName) => {
+            const fileInput = document.getElementById(`${tabName.toLowerCase()}FileInput`);
+            if (!fileInput) return;
+
+            // Remove existing listeners
+            const newFileInput = fileInput.cloneNode(true);
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+
+            // Add new progressive loading listener
+            newFileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                loadLogFileProgressively(tabName, file);
+            });
+
+            // Keep the click handler to reset the input
+            newFileInput.addEventListener('click', function(event) {
+                event.target.value = null;
+            });
+        };
+
+        // Initialize progressive loading for all tabs
+        const initializeProgressiveLoadingForAllTabs = () => {
+            // Add CSS for progress UI
+            addProgressStyles();
+
+            // For each tab, add progress elements and update listeners
+            Object.keys(tabList).forEach(tabName => {
+                addProgressElements(tabName);
+                initializeProgressiveLoading(tabName);
+                updateFileInputListeners(tabName);
+            });
+        };
+
+        // Call this function to set up progressive loading
+        initializeProgressiveLoadingForAllTabs();
     </script>
 </body>
 </html>
