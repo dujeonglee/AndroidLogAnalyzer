@@ -2193,42 +2193,150 @@
             let canvas = document.getElementById(`${currentLogType.toLowerCase()}TimelineCanvas`);
             let ctx = canvas.getContext('2d');
             if (tabList[currentLogType].logData.logEvents.length === 0) return;
+            // Store scroll position information
+            const scrollLeft = container.scrollLeft;
+            const visibleWidth = container.clientWidth;
+            // Set canvas dimensions based on total content and container size
             canvas.width = Math.max(container.clientWidth, tabList[currentLogType].logData.logEvents.length * tabList[currentLogType].logData.eventSpacing);
             canvas.height = 300;
+            // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw the timeline axis (always visible)
             ctx.beginPath();
             ctx.moveTo(0, canvas.height / 2);
             ctx.lineTo(canvas.width, canvas.height / 2);
             ctx.stroke();
+            // Calculate the visible range with buffer
+            const buffer = 300; // Extra pixels to render outside visible area (for smooth scrolling)
+            const startX = Math.max(0, scrollLeft - buffer);
+            const endX = Math.min(canvas.width, scrollLeft + visibleWidth + buffer);
+            // Calculate the range of indices that could be visible
+            const startIndex = Math.floor(startX / tabList[currentLogType].logData.eventSpacing);
+            const endIndex = Math.ceil(endX / tabList[currentLogType].logData.eventSpacing);
+            // Track rendered timestamps for performance measurements
+            let renderedEvents = 0;
+            // Only draw events that are in or near the visible range
             ctx.font = '10px Arial';
-            for (let i = 0; i < tabList[currentLogType].logData.logEvents.length; i++) {
+            for (let i = Math.max(0, startIndex); i < Math.min(endIndex, tabList[currentLogType].logData.logEvents.length); i++) {
                 const event = tabList[currentLogType].logData.logEvents[i];
                 const x = i * tabList[currentLogType].logData.eventSpacing + (tabList[currentLogType].logData.eventSpacing / 2);
+                // Skip events outside the viewable area with buffer
+                if (x < startX || x > endX) continue;
+                renderedEvents++;
+                // Draw event point
                 ctx.fillStyle = event.color;
                 ctx.beginPath();
                 ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
                 ctx.fill();
-                ctx.save();
-                ctx.translate(x, canvas.height / 2 + 10);
-                ctx.rotate(Math.PI / 4);
-                tabList[currentLogType].fillTimestamp(ctx, event);
-                ctx.restore();
-                ctx.save();
-                ctx.translate(x, canvas.height / 2 - 10);
-                ctx.rotate(-Math.PI / 4);
-                ctx.fillText(event.label, 0, 0);
-                ctx.restore();
-                if (i > 0) {
-                    const prevEvent = tabList[currentLogType].logData.logEvents[i - 1];
-                    const timeElapsed = event.timestamp - prevEvent.timestamp;
-                    const timeElapsedStr = formatTimeElapsed(timeElapsed);
+                // Draw timestamp (rotated) - only if we're not zoomed too far out
+                if (tabList[currentLogType].logData.eventSpacing > 15) {
                     ctx.save();
-                    ctx.translate(x, canvas.height / 2 + 30);
+                    ctx.translate(x, canvas.height / 2 + 10);
                     ctx.rotate(Math.PI / 4);
-                    ctx.fillText(`(${timeElapsedStr})`, 0, 0);
+                    tabList[currentLogType].fillTimestamp(ctx, event);
                     ctx.restore();
+                    // Draw label (rotated)
+                    ctx.save();
+                    ctx.translate(x, canvas.height / 2 - 10);
+                    ctx.rotate(-Math.PI / 4);
+                    ctx.fillText(event.label, 0, 0);
+                    ctx.restore();
+                    // Draw time elapsed for events after the first
+                    if (i > 0) {
+                        const prevEvent = tabList[currentLogType].logData.logEvents[i - 1];
+                        const timeElapsed = event.timestamp - prevEvent.timestamp;
+                        const timeElapsedStr = formatTimeElapsed(timeElapsed);
+                        ctx.save();
+                        ctx.translate(x, canvas.height / 2 + 30);
+                        ctx.rotate(Math.PI / 4);
+                        ctx.fillText(`(${timeElapsedStr})`, 0, 0);
+                        ctx.restore();
+                    }
+                } else {
+                    // When zoomed out too far, just draw minimal elements
+                    // to avoid text overlapping and performance issues
+                    if (i % 10 === 0) { // Draw only every 10th label when zoomed out
+                        ctx.save();
+                        ctx.translate(x, canvas.height / 2 - 10);
+                        ctx.fillText(event.label, 0, 0);
+                        ctx.restore();
+                    }
                 }
             }
+            // Log performance stats in debug mode
+            if (window.debugMode) {
+                console.log(`Timeline rendering: ${renderedEvents}/${tabList[currentLogType].logData.logEvents.length} events rendered`);
+            }
+        };
+
+        // Add a scroll event handler to optimize timeline rendering during scrolling
+        const initializeTimelineScrollHandling = (logType) => {
+            const container = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
+            // Use debouncing to avoid excessive redraws during rapid scrolling
+            let scrollTimeout;
+            container.addEventListener('scroll', function() {
+                if (scrollTimeout) {
+                    window.cancelAnimationFrame(scrollTimeout);
+                }
+                scrollTimeout = window.requestAnimationFrame(function() {
+                    if (currentLogType === logType) {
+                        drawTimeline();
+                    }
+                });
+            });
+        };
+
+        // Add throttling function for events that can fire rapidly
+        const throttle = (func, limit) => {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            };
+        };
+
+        // Update the wheel event handler with throttling
+        const updateTimelineZoomHandler = (logType) => {
+            const canvas = document.getElementById(`${logType.toLowerCase()}TimelineCanvas`);
+            // Remove existing wheel listener if any
+            const oldListener = canvas._wheelListener;
+            if (oldListener) {
+                canvas.removeEventListener('wheel', oldListener);
+            }
+            // Create and store new throttled listener
+            const throttledZoom = throttle(function(event) {
+                event.preventDefault();
+                const zoomIntensity = 0.1;
+                const wheel = event.deltaY < 0 ? 1 : -1;
+                const zoom = Math.exp(wheel * zoomIntensity);
+                // Get mouse position relative to canvas
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                // Calculate event index under mouse before zoom
+                const container = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
+                const scrollLeft = container.scrollLeft;
+                const eventIndexAtMouse = Math.floor((mouseX + scrollLeft) / tabList[logType].logData.eventSpacing);
+                // Apply zoom
+                const oldSpacing = tabList[logType].logData.eventSpacing;
+                tabList[logType].logData.eventSpacing *= zoom;
+                adjustEventSpacing();
+                // Calculate new position of the event under mouse
+                const newEventPos = eventIndexAtMouse * tabList[logType].logData.eventSpacing;
+                // Adjust scroll position to keep mouse over the same event
+                const scrollDiff = newEventPos - (mouseX + scrollLeft);
+                container.scrollLeft += scrollDiff;
+                // Redraw with new spacing
+                drawTimeline();
+            }, 20); // 20ms limit between executions
+            // Store the listener so we can remove it later if needed
+            canvas._wheelListener = throttledZoom;
+            // Add new listener
+            canvas.addEventListener('wheel', throttledZoom);
         };
 
         /**
@@ -2447,9 +2555,14 @@
             const container = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
             const canvas = document.getElementById(`${logType.toLowerCase()}TimelineCanvas`);
             const tooltip = document.getElementById('tooltip');
-            const timelineContainer = document.getElementById(`${logType.toLowerCase()}TimelineContainer`);
 
-            timelineContainer.style.display = 'none';
+            container.style.display = 'none';
+
+            // Add scroll optimization
+            initializeTimelineScrollHandling(logType);
+
+            // Update zoom handler
+            updateTimelineZoomHandler(logType);
 
             // Event listener for clicking on timeline events
             canvas.addEventListener('click', function(event) {
@@ -2460,34 +2573,32 @@
                     highlightLogLine(tabList[currentLogType].logData.logEvents[clickedIndex].index);
                 }
             });
-            // Event listener for showing tooltip on hover
-            canvas.addEventListener('mousemove', function(event) {
+
+            // Optimized tooltip handling
+            let lastHoverIndex = -1;
+            const mouseMoveHandler = throttle((event) => {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const hoverIndex = Math.floor((x - (tabList[currentLogType].logData.eventSpacing / 2)) / tabList[currentLogType].logData.eventSpacing);
-                if (hoverIndex >= 0 && hoverIndex < tabList[currentLogType].logData.logEvents.length) {
-                    const logLine = tabList[currentLogType].logData.logLines[tabList[currentLogType].logData.logEvents[hoverIndex].index];
-                    tooltip.style.display = 'block';
-                    tooltip.style.left = (event.pageX  + 10) + 'px';
-                    tooltip.style.top = (event.pageY + 10) + 'px';
-                    tooltip.textContent = logLine;
-                } else {
-                    tooltip.style.display = 'none';
+                // Only update tooltip if we're hovering over a different event
+                if (hoverIndex !== lastHoverIndex) {
+                    lastHoverIndex = hoverIndex;
+                    if (hoverIndex >= 0 && hoverIndex < tabList[currentLogType].logData.logEvents.length) {
+                        const logLine = tabList[currentLogType].logData.logLines[tabList[currentLogType].logData.logEvents[hoverIndex].index];
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = (event.pageX + 10) + 'px';
+                        tooltip.style.top = (event.pageY + 10) + 'px';
+                        tooltip.textContent = logLine;
+                    } else {
+                        tooltip.style.display = 'none';
+                    }
                 }
-            });
+            }, 30); // 30ms throttle for smooth tooltip updates
+            canvas.addEventListener('mousemove', mouseMoveHandler);
             // Event listener for hiding tooltip when mouse leaves canvas
-            canvas.addEventListener('mouseout', function() {
+            canvas.addEventListener('mouseout', () => {
                 tooltip.style.display = 'none';
-            });
-            // Event listener for zooming with mouse wheel
-            canvas.addEventListener('wheel', function(event) {
-                event.preventDefault();
-                const zoomIntensity = 0.1;
-                const wheel = event.deltaY < 0 ? 1 : -1;
-                const zoom = Math.exp(wheel * zoomIntensity);
-                tabList[currentLogType].logData.eventSpacing *= zoom;
-                adjustEventSpacing();
-                drawTimeline();
+                lastHoverIndex = -1;
             });
         };
 
