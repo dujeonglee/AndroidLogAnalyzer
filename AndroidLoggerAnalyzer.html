@@ -236,6 +236,107 @@
     <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
     <script>
+        class MatchingEntries {
+            constructor() {
+                this.entriesByTimestamp = new Map(); // Map timestamp -> array of entries
+                this.entriesByIndex = new Map();     // Map originalIndex -> entry
+                this.allEntries = [];                // Maintain sorted array for iteration
+                this.isDirty = false;                // Flag to indicate if sorting is needed
+            }
+
+            // Add an entry to the collection
+            add(entry) {
+                // Store in the maps for fast access
+                if (!this.entriesByTimestamp.has(entry.timestamp)) {
+                    this.entriesByTimestamp.set(entry.timestamp, []);
+                }
+                this.entriesByTimestamp.get(entry.timestamp).push(entry);
+                this.entriesByIndex.set(entry.index, entry);
+
+                // Add to array but mark as needing sort
+                this.allEntries.push(entry);
+                this.isDirty = true;
+            }
+
+            // Get all entries sorted by timestamp and original index
+            getAll() {
+                if (this.isDirty) {
+                    this.sort();
+                }
+                return this.allEntries;
+            }
+
+            // Sort the entries by timestamp and then by original index
+            sort() {
+                this.allEntries.sort((a, b) => {
+                    if (a.timestamp !== b.timestamp) {
+                    return a.timestamp - b.timestamp;
+                    }
+                    return a.index - b.index;
+                });
+                this.isDirty = false;
+            }
+
+            // Clear all entries
+            clear() {
+                this.entriesByTimestamp.clear();
+                this.entriesByIndex.clear();
+                this.allEntries = [];
+                this.isDirty = false;
+            }
+
+            // Remove entries for a specific filter
+            removeByFilterIndex(filterIndex) {
+                this.allEntries = this.allEntries.filter(entry => entry.filterIndex !== filterIndex);
+
+                // Update maps
+                this.entriesByTimestamp.clear();
+                this.entriesByIndex.clear();
+
+                for (const entry of this.allEntries) {
+                    if (!this.entriesByTimestamp.has(entry.timestamp)) {
+                    this.entriesByTimestamp.set(entry.timestamp, []);
+                    }
+                    this.entriesByTimestamp.get(entry.timestamp).push(entry);
+                    this.entriesByIndex.set(entry.index, entry);
+                }
+
+                this.isDirty = true;
+            }
+
+            // Check if an entry exists for a specific log line index
+            hasEntryForIndex(index) {
+                return this.entriesByIndex.has(index);
+            }
+
+            // Get entry by log line index
+            getByIndex(index) {
+                return this.entriesByIndex.get(index);
+            }
+
+            // Get number of entries
+            get length() {
+                return this.allEntries.length;
+            }
+
+            // Iterator to make this work with for...of loops
+            [Symbol.iterator]() {
+                if (this.isDirty) {
+                    this.sort();
+                }
+                return this.allEntries[Symbol.iterator]();
+            }
+
+            // Filter entries and return a new array (for use with timerange filters)
+            filter(filterFn) {
+                return this.getAll().filter(filterFn);
+            }
+        }
+
+        // Initialize the MatchingEntries in the logData
+        function initializeMatchingEntries(tabName) {
+            tabList[tabName].logData.matchingList = new MatchingEntries();
+        }
         /** Tab list
          * Key: Tab name
          * presetFilter: preset filter
@@ -306,7 +407,7 @@
                         logLines: [],      // Array to store individual log lines
                         filters: [],       // Array to store active filters
                         logEvents: [],     // Array to store parsed log events
-                        matchingList: [],  // Array to store lines matching current filters
+                        matchingList: new MatchingEntries(),  // Initialize with our new class
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
                         isLogFileLoaded: false, // Flag to indicate if a log file is loaded
@@ -1348,7 +1449,7 @@
          * @complexity O(n * m), where n is the number of log lines and m is the number of filters.
          */
          const updateMatchingList = () => {
-            tabList[currentLogType].logData.matchingList = [];
+            tabList[currentLogType].logData.matchingList.clear();
             const filters = tabList[currentLogType].logData.filters;
 
             if (filters.length === 0) return;
@@ -1378,7 +1479,7 @@
                 }
 
                 if (bestMatch) {
-                    insertIntoMatchingList(bestMatch);
+                    tabList[currentLogType].logData.matchingList.add(bestMatch);
                 }
             }
             adjustEventSpacing();
@@ -2284,44 +2385,42 @@
             const filters = tabList[currentLogType].logData.filters;
 
             // Remove entries for the updated filter
-            tabList[currentLogType].logData.matchingList = tabList[currentLogType].logData.matchingList.filter(entry => entry.filterIndex !== updatedFilterIndex);
+            tabList[currentLogType].logData.matchingList.removeByFilterIndex(updatedFilterIndex);
 
             for (let [lineIndex, line] of tabList[currentLogType].logData.logLines.entries()) {
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
                 if (timestamp < tabList[currentLogType].logData.startTime || timestamp > tabList[currentLogType].logData.endTime) continue;
 
-                let bestMatch = null;
-                let bestMatchLength = 0;
+                // Skip if this line already has a matching entry with a different filter
+                if (tabList[currentLogType].logData.matchingList.hasEntryForIndex(lineIndex)) {
+                    const existingEntry = tabList[currentLogType].logData.matchingList.getByIndex(lineIndex);
+                    const existingMatchLength = getFilterMatchLength(line, filters[existingEntry.filterIndex]);
 
-                // Check if the updated filter matches this line
-                if (evaluateFilter(line, filters[updatedFilterIndex])) {
-                    const matchLength = getFilterMatchLength(line, filters[updatedFilterIndex]);
-                    bestMatch = {
-                        timestamp,
-                        timestampStr,
-                        line,
-                        index: lineIndex,
-                        filterIndex: updatedFilterIndex
-                    };
-                    bestMatchLength = matchLength;
-                }
-
-                // Check if this line is already matched by another filter
-                const existingMatchIndex = tabList[currentLogType].logData.matchingList.findIndex(entry => entry.index === lineIndex);
-
-                if (existingMatchIndex !== -1) {
-                    const existingMatch = tabList[currentLogType].logData.matchingList[existingMatchIndex];
-                    const existingMatchLength = getFilterMatchLength(line, filters[existingMatch.filterIndex]);
-
-                    // If the new match is better, replace the existing one
-                    if (bestMatch && bestMatchLength > existingMatchLength) {
-                        tabList[currentLogType].logData.matchingList.splice(existingMatchIndex, 1);
-                        insertIntoMatchingList(bestMatch);
+                    // Only consider the new filter if it has a better match
+                    if (evaluateFilter(line, filters[updatedFilterIndex])) {
+                        const matchLength = getFilterMatchLength(line, filters[updatedFilterIndex]);
+                        if (matchLength > existingMatchLength) {
+                            // Remove existing entry and add new one
+                            tabList[currentLogType].logData.matchingList.removeByFilterIndex(existingEntry.filterIndex);
+                            tabList[currentLogType].logData.matchingList.add({
+                            timestamp,
+                            timestampStr,
+                            line,
+                            index: lineIndex,
+                            filterIndex: updatedFilterIndex
+                            });
+                        }
                     }
-                } else if (bestMatch) {
-                    // If there's no existing match and we found a match with the updated filter, add it
-                    insertIntoMatchingList(bestMatch);
+                } else if (evaluateFilter(line, filters[updatedFilterIndex])) {
+                    // No existing match, add this one
+                    tabList[currentLogType].logData.matchingList.add({
+                    timestamp,
+                    timestampStr,
+                    line,
+                    index: lineIndex,
+                    filterIndex: updatedFilterIndex
+                    });
                 }
             }
 
