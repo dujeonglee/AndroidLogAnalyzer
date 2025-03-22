@@ -1324,7 +1324,7 @@
          * 
          * @throws {Error} Implicitly, if any of the expected DOM elements are not found.
          */
-        const toggleContainers = () => {
+        function toggleContainers() {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             const timelineContainer = document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`);
             const timeRangeContainer = document.getElementById(`${currentLogType.toLowerCase()}TimeRangeContainer`);
@@ -2093,7 +2093,7 @@
          * 
          * @throws {Error} Implicitly, if the required DOM elements are not found.
          */
-        const openLogType = (evt, logType) => {
+        function openLogType(evt, logType) {
             var i, tabcontent, tablinks;
 
             currentLogType = logType;
@@ -3691,21 +3691,117 @@
             logData.isLogFileLoaded = true;
             logData.isLoading = false;
 
-            // Update time range inputs based on the complete log file
-            updateTimeRangeInputs(tabName);
+            // Special handling for Tracepoint tab
+            if (tabName === 'Tracepoint') {
+                // For Tracepoint, we show the analysis dropdown
+                const analysisDropdown = document.getElementById(`${tabName.toLowerCase()}AnalysisDropdown`);
+                if (analysisDropdown) {
+                    analysisDropdown.style.display = 'block';
+                    // Make sure we render the analysis dropdown
+                    renderAnalysisDropdown();
+                }
+            } else {
+                // For other tabs, update time range inputs and process filters
+                updateTimeRangeInputs(tabName);
 
-            // If this is the first log file loaded, activate filters
-            if (logData.filters.length === 0) {
-                activateFilters();
+                // If this is the first log file loaded, activate filters
+                if (logData.filters.length === 0) {
+                    activateFilters();
+                }
+
+                // Process the complete log data
+                updateMatchingList();
+                updateDisplayAndTimeline();
             }
-
-            // Process the complete log data
-            updateMatchingList();
-            updateDisplayAndTimeline();
 
             // Update UI state
             toggleContainers();
             hideProgressUI(tabName);
+
+            // Show or hide the drop zone based on whether a file is loaded
+            // We want to keep the drop zone visible for all tabs, even when a file is loaded
+            updateDropZoneVisibility(tabName);
+        };
+
+        const updateDropZoneVisibility = (tabName) => {
+            const dropZone = document.getElementById(`${tabName.toLowerCase()}DropZone`);
+            if (dropZone) {
+                // Always keep the drop zone visible, even when a file is loaded
+                dropZone.style.display = 'block';
+            }
+        };
+
+        const toggleContainers_original = toggleContainers;
+        toggleContainers = function() {
+            // Only use the original function for non-Tracepoint tabs
+            if (currentLogType !== 'Tracepoint') {
+                toggleContainers_original();
+            } else {
+                // For Tracepoint, we need custom container toggling
+                const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
+                if (filterContainer) {
+                    // Tracepoint doesn't use the filter container
+                    filterContainer.classList.add('disabled-container');
+                }
+
+                // Show the analysis dropdown if a file is loaded
+                const analysisDropdown = document.getElementById(`${currentLogType.toLowerCase()}AnalysisDropdown`);
+                if (analysisDropdown) {
+                    analysisDropdown.style.display = tabList[currentLogType].logData.isLogFileLoaded ? 'block' : 'none';
+                }
+
+                // Show other Tracepoint-specific containers based on the selected analysis
+                const graphTypeSelection = document.getElementById(`${currentLogType.toLowerCase()}GraphTypeSelection`);
+                const chartContainer = document.getElementById(`${currentLogType.toLowerCase()}ChartContainer`);
+
+                if (graphTypeSelection && chartContainer) {
+                    if (tabList[currentLogType].logData.isLogFileLoaded && 
+                        tabList[currentLogType].logData.selectedAnalysis === 'tracepoint') {
+                        graphTypeSelection.style.display = 'block';
+                        chartContainer.style.display = 'block';
+                    } else {
+                        graphTypeSelection.style.display = 'none';
+                        chartContainer.style.display = 'none';
+                    }
+                }
+
+                // Always keep drop zone visible for Tracepoint tab
+                updateDropZoneVisibility(currentLogType);
+            }
+        };
+
+        // Fix openLogType to ensure proper tab content rendering
+        const openLogType_original = openLogType;
+        openLogType = function(evt, logType) {
+            // Call the original function
+            openLogType_original(evt, logType);
+
+            // Check if the tab content exists
+            const tabContent = document.getElementById(logType);
+            if (!tabContent || tabContent.children.length === 0) {
+                console.log(`Rendering missing tab content for ${logType}`);
+                // If the tab content doesn't exist or is empty, render it
+                if (tabList[logType] && typeof tabList[logType].rendorTabContent === 'function') {
+                    tabList[logType].rendorTabContent(logType);
+
+                    // Also initialize its data and add event listeners
+                    if (typeof tabList[logType].initializeLogData === 'function') {
+                        tabList[logType].initializeLogData(logType);
+                    }
+
+                    if (typeof tabList[logType].addEventListener === 'function') {
+                        tabList[logType].addEventListener(logType);
+                    }
+
+                    // If it's the Tracepoint tab, make sure we set up any additional things it needs
+                    if (logType === 'Tracepoint') {
+                        initializeTimelineInteractions(logType);
+                    }
+                }
+            }
+
+            // Always update drop zone visibility when switching tabs
+            updateDropZoneVisibility(logType);
         };
 
         // Progressive file loading and parsing
@@ -3716,7 +3812,15 @@
             logData.isLoading = true;
             logData.loadCancelled = false;
             logData.logLines = [];
-            logData.matchingList = new MatchingEntries(); // Use the optimized data structure
+
+            // Special handling for Tracepoint tab, which uses a simple array for matchingList
+            // rather than the MatchingEntries class
+            if (tabName === 'Tracepoint') {
+                logData.matchingList = [];
+            } else {
+                logData.matchingList = new MatchingEntries(); // Use the optimized data structure for other tabs
+            }
+
             logData.logFileName = file.name;
             logData.isLogFileLoaded = false; // Will be set to true when fully loaded
 
@@ -3828,6 +3932,215 @@
 
         // Call this function to set up progressive loading
         initializeProgressiveLoadingForAllTabs();
+
+        // ============ DRAG AND DROP IMPLEMENTATION ============
+        // Function to add drag and drop functionality to a specific tab
+        const addDragDropToTab = (tabName) => {
+            // Get the tab content element
+            const tabContent = document.getElementById(tabName);
+            if (!tabContent) {
+                console.log(`Tab content not found for ${tabName}, deferring drag-drop setup`);
+                // If the tab content doesn't exist yet, schedule this for later
+                setTimeout(() => addDragDropToTab(tabName), 100);
+                return;
+            }
+
+            // Skip if we already added a drop zone to this tab
+            if (document.getElementById(`${tabName.toLowerCase()}DropZone`)) {
+                return;
+            }
+
+            // Create a drag-drop zone
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drag-drop-zone';
+            dropZone.id = `${tabName.toLowerCase()}DropZone`;
+            dropZone.innerHTML = `
+                <div class="drop-message">
+                    <i class="drop-icon">📁</i>
+                    <p>Drag and drop log files here<br>or use the file input above</p>
+                </div>
+            `;
+
+            // Insert the drop zone after the file input
+            const fileInput = document.getElementById(`${tabName.toLowerCase()}FileInput`);
+            if (fileInput && fileInput.parentNode) {
+                fileInput.parentNode.insertBefore(dropZone, fileInput.nextSibling);
+            } else {
+                // If file input isn't found, add to the beginning of tab content
+                tabContent.insertBefore(dropZone, tabContent.firstChild);
+            }
+
+            // Add event listeners for drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+
+                // Get the dropped files
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    // Process the first file
+                    const file = files[0];
+                    // Use the existing progressive loading function
+                    loadLogFileProgressively(tabName, file);
+
+                    // Update the file input to show the selected file (optional)
+                    // This creates a new File object that we can use with the file input
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    const fileInput = document.getElementById(`${tabName.toLowerCase()}FileInput`);
+                    if (fileInput) {
+                        fileInput.files = dataTransfer.files;
+                    }
+                }
+            });
+
+            // Also add listeners to the entire tab content for drag events
+            // This allows the user to drop files anywhere in the tab
+            tabContent.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Highlight the drop zone when dragging over the tab
+                dropZone.classList.add('dragover');
+            });
+
+            tabContent.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Check if the leave event is actually leaving the tab content
+                const rect = tabContent.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+
+                if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+                    dropZone.classList.remove('dragover');
+                }
+            });
+
+            tabContent.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+
+                // Process the same as dropping directly on the zone
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    loadLogFileProgressively(tabName, file);
+
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    const fileInput = document.getElementById(`${tabName.toLowerCase()}FileInput`);
+                    if (fileInput) {
+                        fileInput.files = dataTransfer.files;
+                    }
+                }
+            });
+
+            console.log(`Drag-drop initialized for ${tabName} tab`);
+        };
+
+        // Add CSS styles for the drag and drop zones
+        const addDragDropStyles = () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                .drag-drop-zone {
+                    border: 2px dashed #ccc;
+                    border-radius: 8px;
+                    padding: 25px;
+                    text-align: center;
+                    margin: 15px 0;
+                    background-color: #f9f9f9;
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                }
+
+                .drag-drop-zone.dragover {
+                    background-color: #e0f7fa;
+                    border-color: #03a9f4;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                }
+
+                .drop-message {
+                    color: #666;
+                    font-size: 16px;
+                }
+
+                .drop-icon {
+                    font-size: 30px;
+                    display: block;
+                    margin-bottom: 10px;
+                }
+
+                /* Remove the rule that hides drop zones when filters are disabled 
+                This keeps the drop zone visible even when a file is loaded */
+                /*
+                .disabled-container ~ .drag-drop-zone {
+                    display: none;
+                }
+                */
+            `;
+            document.head.appendChild(style);
+        };
+
+        // Function to initialize drag and drop for all tabs
+        const initializeDragAndDropForAllTabs = () => {
+            // Add the CSS styles
+            addDragDropStyles();
+
+            // Add drag and drop to each tab
+            Object.keys(tabList).forEach(tabName => {
+                addDragDropToTab(tabName);
+            });
+        };
+
+        // ============ INITIALIZATION ============
+        // Initialize both fixes
+        const initializeAllEnhancements = () => {
+            // Initialize drag and drop functionality
+            initializeDragAndDropForAllTabs();
+
+            console.log("Applied Tracepoint tab fix and Drag and Drop enhancements");
+        };
+
+        // Call this function after the page has loaded
+        document.addEventListener('DOMContentLoaded', initializeAllEnhancements);
+
+        // If the page is already loaded, initialize now
+        if (document.readyState === 'complete') {
+            initializeAllEnhancements();
+        }
+
+        // Add a safety check to ensure Tracepoint tab is rendered
+        setTimeout(() => {
+            const tracepointTab = document.getElementById('Tracepoint');
+            if (!tracepointTab || tracepointTab.children.length === 0) {
+                console.log("Tracepoint tab not properly rendered, forcing render");
+                if (tabList['Tracepoint'] && typeof tabList['Tracepoint'].rendorTabContent === 'function') {
+                    tabList['Tracepoint'].rendorTabContent('Tracepoint');
+                    if (typeof tabList['Tracepoint'].initializeLogData === 'function') {
+                        tabList['Tracepoint'].initializeLogData('Tracepoint');
+                    }
+                    if (typeof tabList['Tracepoint'].addEventListener === 'function') {
+                        tabList['Tracepoint'].addEventListener('Tracepoint');
+                    }
+                    initializeTimelineInteractions('Tracepoint');
+                    addDragDropToTab('Tracepoint');
+                }
+            }
+        }, 500);
     </script>
 </body>
 </html>
