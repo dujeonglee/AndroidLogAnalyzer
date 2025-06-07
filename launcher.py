@@ -196,8 +196,8 @@ class WebServerGUI:
         self.log(f"서버 시작 중... 요청된 포트: {port}")
         
         try:
-            # 웹서버 생성 - 기본 핸들러 사용
-            self.server = DebuggingTCPServer(("", port), http.server.SimpleHTTPRequestHandler)
+            # 웹서버 생성 - 디버그 웹서버
+            self.server = DebuggingTCPServer(("", port), DebuggingHTTPRequestHandler)
             
             # 실제 바인딩된 포트 확인 및 저장
             self.server_port = self.server.server_address[1]
