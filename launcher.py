@@ -1,505 +1,282 @@
-#!/usr/bin/env python3
-import os
-import sys
+import tkinter as tk
+from tkinter import ttk, scrolledtext, messagebox
+import threading
 import http.server
 import socketserver
 import webbrowser
-import threading
-import tkinter as tk
-from tkinter import messagebox
-from pathlib import Path
-import socket
-import struct
+import os
+import datetime
+import queue
+import time
+import signal
+
+class DebuggingHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def setup(self):
+        print(f"[{time.time():.3f}] setup() 시작")
+        super().setup()
+        print(f"[{time.time():.3f}] setup() 완료")
+    
+    def handle(self):
+        print(f"[{time.time():.3f}] handle() 시작 - HTTP 요청 처리")
+        super().handle()
+        print(f"[{time.time():.3f}] handle() 완료")
+    
+    def parse_request(self):
+        print(f"[{time.time():.3f}] parse_request() 시작 - 데이터 수신 대기")
+        result = super().parse_request()
+        print(f"[{time.time():.3f}] parse_request() 완료")
+        return result
+    
+    def do_GET(self):
+        print(f"[{time.time():.3f}] do_GET() 시작 - 파일 처리")
+        super().do_GET()
+        print(f"[{time.time():.3f}] do_GET() 완료")
+
+class DebuggingTCPServer(socketserver.TCPServer):
+    def get_request(self):
+        print(f"[{time.time():.3f}] get_request() 시작 - accept() 대기중...")
+        sock, addr = self.socket.accept()
+        print(f"[{time.time():.3f}] get_request() 완료 - 클라이언트 {addr} 연결됨")
+        return sock, addr
+    
+    def handle_request(self):
+        print(f"[{time.time():.3f}] handle_request() 시작")
+        super().handle_request()
+        print(f"[{time.time():.3f}] handle_request() 완료")
 
 class WebServerGUI:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("HTML 웹 서버 런처")
-        self.root.geometry("500x350")
-        self.root.resizable(False, False)
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Simple Web Server")
+        self.root.geometry("600x500")
+        self.root.resizable(True, True)
         
-        # 웹 서버 관련 변수
-        self.httpd = None
+        # 서버 관련 변수
+        self.server = None
         self.server_thread = None
         self.is_running = False
-        self.port = None
+        self.server_port = None  # 실제 바인딩된 포트 저장
+        self.server_stop_thread = None
         
-        self.setup_ui()
+        # 로그 큐 (스레드 간 안전한 통신용)
+        self.log_queue = queue.Queue()
         
-    def setup_ui(self):
-        """UI 구성"""
-        # 제목
-        title_label = tk.Label(
-            self.root, 
-            text="🌐 HTML 웹 서버 런처", 
-            font=("Arial", 16, "bold"),
-            pady=20
-        )
-        title_label.pack()
+        self.setup_gui()
+        self.setup_logging()
         
-        # 현재 디렉토리 표시
-        self.dir_label = tk.Label(
-            self.root,
-            text=f"📁 현재 디렉토리: {os.getcwd()}",
-            font=("Arial", 10),
-            wraplength=450,
-            justify="left"
-        )
-        self.dir_label.pack(pady=5)
+        # 주기적으로 로그 큐 확인
+        self.root.after(100, self.process_log_queue)
         
-        # HTML 파일 목록 표시
-        self.files_frame = tk.Frame(self.root)
-        self.files_frame.pack(pady=10, fill="x", padx=20)
+    def setup_gui(self):
+        # 메인 프레임
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        self.update_file_list()
+        # 루트 창의 그리드 가중치 설정
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+        
+        # 상단 컨트롤 패널
+        control_frame = ttk.LabelFrame(main_frame, text="서버 컨트롤", padding="10")
+        control_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        control_frame.columnconfigure(1, weight=1)
+        
+        # 포트 설정
+        ttk.Label(control_frame, text="포트:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        self.port_var = tk.StringVar(value="8000")
+        self.port_entry = ttk.Entry(control_frame, textvariable=self.port_var, width=10)
+        self.port_entry.grid(row=0, column=1, sticky=tk.W, padx=(0, 10))
+        self.port_entry.config(state=tk.DISABLED)
+        
+        # 시작/정지 버튼
+        self.start_button = ttk.Button(control_frame, text="Open Browser", command=self.open_browser)
+        self.start_button.grid(row=0, column=2, padx=(0, 5))
+        self.start_button.config(state=tk.DISABLED)
+        
+        self.stop_button = ttk.Button(control_frame, text="Stop", command=self.stop_server, state=tk.DISABLED)
+        self.stop_button.grid(row=0, column=3, padx=(0, 10))
         
         # 상태 표시
-        self.status_label = tk.Label(
-            self.root,
-            text="⏹️ 서버 중지됨",
-            font=("Arial", 12, "bold"),
-            fg="red"
-        )
-        self.status_label.pack(pady=10)
+        self.status_var = tk.StringVar(value="서버 정지됨")
+        self.status_label = ttk.Label(control_frame, textvariable=self.status_var, foreground="red")
+        self.status_label.grid(row=0, column=4, sticky=tk.W)
         
-        # URL 표시 (서버 실행 시)
-        self.url_label = tk.Label(
-            self.root,
-            text="",
-            font=("Arial", 10),
-            fg="blue",
-            cursor="hand2"
-        )
-        self.url_label.pack(pady=5)
+        # 서버 정보 표시
+        info_frame = ttk.LabelFrame(main_frame, text="서버 정보", padding="10")
+        info_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        info_frame.columnconfigure(1, weight=1)
         
-        # 버튼 프레임
-        button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=20)
+        ttk.Label(info_frame, text="서빙 디렉토리:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        self.dir_var = tk.StringVar(value=os.getcwd())
+        ttk.Label(info_frame, textvariable=self.dir_var, foreground="blue").grid(row=0, column=1, sticky=tk.W)
         
-        # Start 버튼
-        self.start_button = tk.Button(
-            button_frame,
-            text="🚀 Start Server",
-            font=("Arial", 12, "bold"),
-            bg="#4CAF50",
-            fg="white",
-            padx=20,
-            pady=10,
-            command=self.start_server
-        )
-        self.start_button.pack(side="left", padx=10)
+        # 콘솔 로그 영역
+        log_frame = ttk.LabelFrame(main_frame, text="콘솔 로그", padding="10")
+        log_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
         
-        # Stop 버튼
-        self.stop_button = tk.Button(
-            button_frame,
-            text="🛑 Stop Server",
-            font=("Arial", 12, "bold"),
-            bg="#f44336",
-            fg="white",
-            padx=20,
-            pady=10,
-            command=self.stop_server,
-            state="disabled"
-        )
-        self.stop_button.pack(side="left", padx=10)
+        # 로그 텍스트 영역 (스크롤 가능)
+        self.log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, height=15, state=tk.DISABLED)
+        self.log_text.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 5))
         
-        # 고급 브라우저 제어 버튼 추가
-        advanced_frame = tk.Frame(self.root)
-        advanced_frame.pack(pady=10)
+        # 로그 클리어 버튼
+        ttk.Button(log_frame, text="로그 클리어", command=self.clear_log).grid(row=1, column=0, sticky=tk.W)
         
-        # 중지 페이지 생성 버튼 (실험적 기능)
-        stop_page_button = tk.Button(
-            advanced_frame,
-            text="🔄 중지 페이지로 이동",
-            font=("Arial", 10),
-            command=self.navigate_to_stop_page,
-            state="disabled"
-        )
-        stop_page_button.pack(side="left", padx=5)
-        self.stop_page_button = stop_page_button
+    def setup_logging(self):
+        """로그 시스템 초기화"""
+        self.log("=" * 50)
+        self.log("Simple Web Server 시작")
+        self.log(f"현재 디렉토리: {os.getcwd()}")
         
-        # URL 클릭 이벤트
-        self.url_label.bind("<Button-1>", self.open_browser)
-        
-        # 윈도우 닫기 이벤트
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
-    def update_file_list(self):
-        """HTML 파일 목록 업데이트"""
-        # 기존 위젯 제거
-        for widget in self.files_frame.winfo_children():
-            widget.destroy()
-            
-        # HTML 파일 찾기
-        html_files = list(Path.cwd().glob("*.html")) + list(Path.cwd().glob("*.htm"))
-        
-        files_label = tk.Label(
-            self.files_frame,
-            text="📋 HTML 파일 목록:",
-            font=("Arial", 10, "bold")
-        )
-        files_label.pack(anchor="w")
-        
-        if html_files:
-            for html_file in html_files:
-                file_label = tk.Label(
-                    self.files_frame,
-                    text=f"   • {html_file.name}",
-                    font=("Arial", 9)
-                )
-                file_label.pack(anchor="w")
+        # index.html 파일 존재 확인
+        index_path = os.path.join(os.getcwd(), "index.html")
+        if os.path.exists(index_path):
+            self.log("✓ index.html 파일 발견")
         else:
-            no_files_label = tk.Label(
-                self.files_frame,
-                text="   ⚠️ HTML 파일이 없습니다.",
-                font=("Arial", 9),
-                fg="orange"
-            )
-            no_files_label.pack(anchor="w")
-    
-    def find_index_file(self):
-        """index.html 파일 찾기"""
-        current_dir = Path.cwd()
-        index_file = current_dir / "index.html"
-        return index_file if index_file.exists() else None
-    
-    def find_available_port(self, start_port=8000):
-        """사용 가능한 포트 찾기"""
-        for port in range(start_port, start_port + 100):
-            try:
-                # 포트 사용 가능 여부 체크
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    s.bind(('localhost', port))
-                    print(f"✅ 포트 {port} 사용 가능")
-                    return port
-            except OSError as e:
-                print(f"❌ 포트 {port} 사용 불가: {str(e)}")
-                continue
+            self.log("⚠ index.html 파일이 없습니다. 기본 디렉토리 목록이 표시됩니다.")
         
-        print("❌ 사용 가능한 포트를 찾을 수 없음")
-        return None
+        self.log("=" * 50)
     
+    def log(self, message):
+        """로그 메시지를 큐에 추가"""
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_message = f"[{timestamp}] {message}"
+        self.log_queue.put(log_message)
+    
+    def process_log_queue(self):
+        """로그 큐에서 메시지를 처리하여 GUI에 표시"""
+        try:
+            while True:
+                message = self.log_queue.get_nowait()
+                self.log_text.config(state=tk.NORMAL)
+                self.log_text.insert(tk.END, message + "\n")
+                self.log_text.see(tk.END)  # 자동 스크롤
+                self.log_text.config(state=tk.DISABLED)
+        except queue.Empty:
+            pass
+        
+        # 100ms 후에 다시 확인
+        self.root.after(100, self.process_log_queue)
+    
+    def clear_log(self):
+        """로그 텍스트 영역 클리어"""
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+        self.log("로그가 클리어되었습니다.")
+    
+    def open_browser(self):
+        """웹서버 시작"""
+        # 브라우저 자동 열기
+        try:
+            browser_url = f"http://localhost:{self.server_port}"
+            self.log(f"브라우저 열기 시도: {browser_url}")
+            webbrowser.open(browser_url)
+            self.log("✓ 브라우저 열기 성공")
+        except Exception as e:
+            self.log(f"⚠ 브라우저 열기 실패: {e}")
+
     def start_server(self):
-        """웹 서버 시작"""
-        if self.is_running:
-            return
-            
-        # index.html 파일 확인
-        index_file = self.find_index_file()
-        if not index_file:
-            messagebox.showerror(
-                "오류", 
-                "index.html 파일을 찾을 수 없습니다.\n현재 디렉토리에 index.html 파일을 생성해주세요."
-            )
-            return
+        try:
+            port = int(self.port_var.get())
+            if port < 1 or port > 65535:
+                raise ValueError("포트 범위는 1-65535입니다.")
+        except ValueError as e:
+            messagebox.showerror("오류", f"잘못된 포트 번호: {e}")
+            return False
         
-        # 포트 찾기
-        self.port = self.find_available_port()
-        if not self.port:
-            messagebox.showerror("오류", "사용 가능한 포트를 찾을 수 없습니다.")
-            return
+        if self.is_running:
+            self.log("⚠ 서버가 이미 실행 중입니다.")
+            return False
+        
+        # 서버 시작
+        self.log(f"서버 시작 중... 요청된 포트: {port}")
         
         try:
-            print(f"🚀 서버 시작 시도: localhost:{self.port}")
-            print(f"📁 작업 디렉토리: {os.getcwd()}")
-            print(f"📄 index 파일: {index_file}")
+            # 웹서버 생성 - 기본 핸들러 사용
+            self.server = DebuggingTCPServer(("", port), http.server.SimpleHTTPRequestHandler)
             
-            # UI 먼저 업데이트
+            # 실제 바인딩된 포트 확인 및 저장
+            self.server_port = self.server.server_address[1]
+            self.log(f"실제 바인딩된 포트: {self.server_port}")
+            
+            # 포트가 요청한 것과 다른지 확인
+            if self.server_port != port:
+                self.log(f"⚠ 요청한 포트({port})와 실제 포트({self.server_port})가 다릅니다!")
+            else:
+                self.log(f"✓ 포트 {port} 정상 바인딩됨")
+            
+            # 서버 상태를 먼저 True로 설정 (중요!)
             self.is_running = True
-            self.start_button.config(state="disabled")
-            self.stop_button.config(state="normal")
-            self.status_label.config(text="🔄 서버 시작 중...", fg="orange")
             
-            # 웹 서버 시작 (별도 스레드에서)
-            self.server_thread = threading.Thread(target=self._run_server, daemon=True)
+            # 별도 스레드에서 서버 실행
+            self.server_thread = threading.Thread(target=self.run_server)
+            self.server_thread.daemon = True
             self.server_thread.start()
             
-            # 잠시 대기 후 서버 상태 확인
-            self.root.after(1000, self._check_server_status)
+            # GUI 상태 업데이트
+            self.start_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.NORMAL)
+            self.status_var.set(f"서버 실행 중 (포트: {self.server_port})")
+            self.status_label.config(foreground="green")
             
-        except Exception as e:
-            print(f"❌ 서버 시작 오류: {str(e)}")
-            messagebox.showerror("오류", f"서버 시작 중 오류가 발생했습니다:\n{str(e)}")
-            self._reset_ui()
-    
-    def _check_server_status(self):
-        """서버 상태 확인 및 UI 업데이트"""
-        if self.is_running and self.httpd:
-            # 서버가 정상적으로 시작된 경우
-            self.status_label.config(text="🟢 서버 실행 중", fg="green")
-            self.stop_page_button.config(state="normal")
-            
-            server_url = f"http://localhost:{self.port}"
-            self.url_label.config(text=f"🌐 {server_url}")
-            
-            # 브라우저에서 열기 (별도 스레드에서)
-            self._open_browser_async(server_url)
-                
-        elif self.is_running:
-            # 서버 시작이 실패한 경우
-            print("❌ 서버 시작 실패 - 상태 리셋")
-            self._reset_ui()
-    
-    def _open_browser_async(self, url):
-        """브라우저를 별도 스레드에서 열기"""
-        def open_browser_thread():
-            try:
-                print(f"🌏 브라우저에서 {url} 열기 시도...")
-                webbrowser.open(url)
-                print(f"✅ 브라우저 열기 성공")
-            except Exception as e:
-                print(f"⚠️ 브라우저 열기 실패: {str(e)}")
+            self.log(f"✓ 서버 시작 완료: http://localhost:{self.server_port}")
+
+            self.open_browser()
+            return True
         
-        browser_thread = threading.Thread(target=open_browser_thread, daemon=True)
-        browser_thread.start()
-    
-    def _run_server(self):
-        """실제 웹 서버 실행 (별도 스레드)"""
-        try:
-            # 현재 디렉토리를 명시적으로 설정
-            os.chdir(Path.cwd())
-            
-            # HTTP 핸들러 설정
-            handler = http.server.SimpleHTTPRequestHandler
-            
-            # 커스텀 TCPServer 클래스로 빠른 종료 지원
-            class FastShutdownTCPServer(socketserver.TCPServer):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    # 소켓 재사용 허용
-                    self.allow_reuse_address = True
-                    # 빠른 종료를 위한 설정
-                    self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    # 연결 대기 시간 단축
-                    self.timeout = 1.0
-                
-                def server_close(self):
-                    """서버 종료 시 모든 연결 강제 종료"""
-                    try:
-                        # 소켓 즉시 종료
-                        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, 
-                                             socket.struct.pack('ii', 1, 0))
-                    except:
-                        pass
-                    super().server_close()
-            
-            # 서버 생성 및 바인딩
-            self.httpd = FastShutdownTCPServer(("localhost", self.port), handler)
-            
-            print(f"서버가 포트 {self.port}에서 시작되었습니다.")
-            print(f"서빙 디렉토리: {os.getcwd()}")
-            
-            # 서버 시작 성공을 UI에 알림
-            self.root.after(0, lambda: print(f"✅ 서버 바인딩 성공: localhost:{self.port}"))
-            
-            # 서버 실행 (타임아웃으로 반응성 향상)
-            while self.is_running:
-                self.httpd.handle_request()
-            
         except OSError as e:
-            error_msg = f"포트 바인딩 오류: {str(e)}\n포트 {self.port}가 이미 사용 중일 수 있습니다."
-            print(f"❌ {error_msg}")
-            if self.is_running:
-                self.root.after(0, lambda: messagebox.showerror("서버 오류", error_msg))
-                self.root.after(0, self._reset_ui)
-        except Exception as e:
-            error_msg = f"서버 실행 중 오류: {str(e)}"
-            print(f"❌ {error_msg}")
-            if self.is_running:
-                self.root.after(0, lambda: messagebox.showerror("서버 오류", error_msg))
-                self.root.after(0, self._reset_ui)
+            self.log(f"✗ 서버 시작 실패: {e}")
+            self.port_var.set(port+1)
+            return False
+            
     
-    def stop_server(self):
-        """웹 서버 중지"""
-        if not self.is_running:
-            return
-            
-        print("🛑 서버 중지 시작...")
-        
+    def run_server(self):
+        """서버 실행 (별도 스레드)"""
         try:
-            # 먼저 실행 플래그를 False로 설정
-            self.is_running = False
+            self.log("서버 스레드 시작됨")
             
-            if self.httpd:
-                print("📡 모든 연결 강제 종료 중...")
-                
-                # 1. 소켓 레벨에서 강제 종료
+            while self.is_running:
                 try:
-                    import struct
-                    # SO_LINGER 옵션으로 즉시 종료
-                    self.httpd.socket.setsockopt(
-                        socket.SOL_SOCKET, 
-                        socket.SO_LINGER, 
-                        struct.pack('ii', 1, 0)  # linger on, timeout 0
-                    )
-                except Exception as e:
-                    print(f"⚠️ 소켓 linger 설정 실패: {e}")
-                
-                # 2. 서버 셧다운 (논블록킹)
-                def force_shutdown():
-                    try:
-                        self.httpd.shutdown()
-                        print("✅ 서버 셧다운 완료")
-                    except Exception as e:
-                        print(f"⚠️ 셧다운 중 오류: {e}")
-                    
-                    try:
-                        self.httpd.server_close()
-                        print("✅ 서버 소켓 닫기 완료")
-                    except Exception as e:
-                        print(f"⚠️ 소켓 닫기 중 오류: {e}")
-                    
-                    self.httpd = None
-                
-                # 강제 종료를 별도 스레드에서 실행 (타임아웃 적용)
-                shutdown_thread = threading.Thread(target=force_shutdown, daemon=True)
-                shutdown_thread.start()
-                
-                # 최대 2초 대기
-                shutdown_thread.join(timeout=2.0)
-                
-                if shutdown_thread.is_alive():
-                    print("⚠️ 서버 종료가 지연되고 있습니다 (강제 종료됨)")
-                    self.httpd = None
-            
-            self._reset_ui()
-            
-            # 사용자에게 브라우저 탭 닫기 안내
-            messagebox.showinfo(
-                "서버 중지", 
-                f"✅ 웹 서버가 중지되었습니다.\n"
-            )
-            
-            print("✅ 서버 중지 완료")
-            
+                    # handle_request는 하나의 요청만 처리 (블로킹)
+                    self.log("handle_request - enter")
+                    self.server.handle_request()
+                    self.log("handle_request - exit")
+                except OSError as e:
+                    # 서버 소켓이 닫힌 경우
+                    if not self.is_running:
+                        self.log("서버 종료 신호 감지됨")
+                        break
+                    else:
+                        self.log(f"⚠ 소켓 오류: {e}")
+                        break
+                        
         except Exception as e:
-            print(f"❌ 서버 중지 중 오류: {e}")
-            # 오류가 발생해도 UI는 리셋
-            self.is_running = False
-            self._reset_ui()
-            messagebox.showerror("오류", f"서버 중지 중 오류가 발생했습니다:\n{str(e)}\n\n서버는 강제로 중지되었습니다.")
-    
-    def _create_stop_page(self):
-        """서버 중지 알림 페이지 생성 (실험적)"""
-        stop_html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>서버 중지됨</title>
-            <meta charset="utf-8">
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    margin: 0;
-                    padding: 50px;
-                }
-                .container {
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 15px;
-                    padding: 40px;
-                    max-width: 500px;
-                    margin: 0 auto;
-                }
-                h1 { font-size: 2.5em; margin-bottom: 20px; }
-                p { font-size: 1.2em; line-height: 1.6; }
-                .emoji { font-size: 3em; margin: 20px 0; }
-            </style>
-            <script>
-                // 3초 후 탭 닫기 시도
-                setTimeout(function() {
-                    window.close();
-                    // window.close()가 작동하지 않으면 안내 메시지 표시
-                    setTimeout(function() {
-                        document.getElementById('close-msg').style.display = 'block';
-                    }, 1000);
-                }, 3000);
-            </script>
-        </head>
-        <body>
-            <div class="container">
-                <div class="emoji">🛑</div>
-                <h1>서버가 중지되었습니다</h1>
-                <p>웹 서버가 정상적으로 중지되었습니다.</p>
-                <p>이 탭은 3초 후 자동으로 닫힙니다.</p>
-                <div id="close-msg" style="display:none;">
-                    <p><strong>⚠️ 이 탭을 수동으로 닫아주세요.</strong></p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        try:
-            stop_page_path = Path.cwd() / "_server_stop.html"
-            with open(stop_page_path, 'w', encoding='utf-8') as f:
-                f.write(stop_html)
-            return stop_page_path
-        except Exception as e:
-            print(f"중지 페이지 생성 실패: {e}")
-            return None
-    
-    def navigate_to_stop_page(self):
-        """중지 페이지로 브라우저 이동 (실험적)"""
-        if not self.is_running:
-            return
-            
-        try:
-            # 임시 중지 페이지 생성
-            stop_page_path = self._create_stop_page()
-            if stop_page_path:
-                stop_url = f"http://localhost:{self.port}/_server_stop.html"
-                self._open_browser_async(stop_url)
-                messagebox.showinfo(
-                    "중지 페이지", 
-                    "브라우저가 중지 페이지로 이동합니다.\n"
-                    "3초 후 탭이 자동으로 닫힙니다."
-                )
-        except Exception as e:
-            print(f"중지 페이지 이동 실패: {e}")
-    
-    def _reset_ui(self):
-        """UI 상태 리셋"""
-        self.is_running = False
-        self.start_button.config(state="normal")
-        self.stop_button.config(state="disabled")
-        self.stop_page_button.config(state="disabled")
-        self.status_label.config(text="⏹️ 서버 중지됨", fg="red")
-        self.url_label.config(text="")
-        self.port = None
-        
-        # 임시 중지 페이지 파일 제거
-        try:
-            stop_page_path = Path.cwd() / "_server_stop.html"
-            if stop_page_path.exists():
-                stop_page_path.unlink()
-        except Exception as e:
-            print(f"임시 파일 제거 실패: {e}")
-    
-    def open_browser(self, event=None):
-        """브라우저에서 URL 열기 (클릭 이벤트)"""
-        if self.is_running and self.port:
-            url = f"http://localhost:{self.port}"
-            self._open_browser_async(url)
+            if self.is_running:
+                self.log(f"✗ 서버 스레드 오류: {e}")
+        finally:
+            self.log("서버 스레드 종료됨")
+
+    def stop_server(self):
+        os.kill(os.getpid(), signal.SIGTERM)
     
     def on_closing(self):
-        """프로그램 종료 시 서버 정리"""
-        if self.is_running:
-            self.stop_server()
-        self.root.destroy()
-        sys.exit(0)
-    
-    def run(self):
-        """GUI 실행"""
-        self.root.mainloop()
+        """애플리케이션 종료 시 처리"""
+        os.kill(os.getpid(), signal.SIGTERM)
 
 def main():
-    """메인 함수"""
-    app = WebServerGUI()
-    app.run()
+    root = tk.Tk()
+    app = WebServerGUI(root)
+    while True:
+        if app.start_server():
+            break
+    # 창 닫기 이벤트 처리
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+    
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
