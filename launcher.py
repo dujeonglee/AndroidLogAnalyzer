@@ -242,9 +242,7 @@ class WebServerGUI:
             while self.is_running:
                 try:
                     # handle_request는 하나의 요청만 처리 (블로킹)
-                    self.log("handle_request - enter")
                     self.server.handle_request()
-                    self.log("handle_request - exit")
                 except OSError as e:
                     # 서버 소켓이 닫힌 경우
                     if not self.is_running:
