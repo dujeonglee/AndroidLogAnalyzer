@@ -259,10 +259,11 @@ class WebServerGUI:
             self.log("서버 스레드 종료됨")
 
     def stop_server(self):
+        """애플리케이션 종료"""
         os.kill(os.getpid(), signal.SIGTERM)
     
     def on_closing(self):
-        """애플리케이션 종료 시 처리"""
+        """애플리케이션 종료"""
         os.kill(os.getpid(), signal.SIGTERM)
 
 def main():
