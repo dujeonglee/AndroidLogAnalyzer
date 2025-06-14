@@ -389,6 +389,7 @@
                             <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
                             <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
                             <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                            <button onclick="resetTimeRange('${tabName}')">Reset Time Range</button>
                         </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
@@ -404,7 +405,7 @@
                         logLines: [],      // Array to store individual log lines
                         filters: [],       // Array to store active filters
                         logEvents: [],     // Array to store parsed log events
-                        matchingList: new MatchingEntries(),  // Initialize with our new class
+                        matchingList: null,  // Initialize with our new class
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
                         isLogFileLoaded: false, // Flag to indicate if a log file is loaded
@@ -527,6 +528,7 @@
                             <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
                             <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
                             <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                            <button onclick="resetTimeRange('${tabName}')">Reset Time Range</button>
                         </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
@@ -542,7 +544,7 @@
                         logLines: [],      // Array to store individual log lines
                         filters: [],       // Array to store active filters
                         logEvents: [],     // Array to store parsed log events
-                        matchingList: [],  // Array to store lines matching current filters
+                        matchingList: null,  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
                         isLogFileLoaded: false, // Flag to indicate if a log file is loaded
@@ -655,6 +657,7 @@
                             <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
                             <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
                             <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                            <button onclick="resetTimeRange('${tabName}')">Reset Time Range</button>
                         </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
@@ -670,12 +673,12 @@
                         logLines: [],      // Array to store individual log lines
                         filters: [],       // Array to store active filters
                         logEvents: [],     // Array to store parsed log events
-                        matchingList: [],  // Array to store lines matching current filters
+                        matchingList: null,  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
                         isLogFileLoaded: false, // Flag to indicate if a log file is loaded
                         startTime: null,   // Start time of the interested timestamp scope
-                        endTime: null      // End time of the interested timestamp scope // Flag to indicate if a log file is loaded
+                        endTime: null      // End time of the interested timestamp scope
                     };
                 },
                 addEventListener: function(tabName) {
@@ -783,6 +786,7 @@
                             <label for="${tabName.toLowerCase()}EndTime">End Time:</label>
                             <input type="text" id="${tabName.toLowerCase()}EndTime" placeholder="${timestampPlaceholder}">
                             <button onclick="updateTimeRange('${tabName}')">Update Time Range</button>
+                            <button onclick="resetTimeRange('${tabName}')">Reset Time Range</button>
                         </div>
                         <div id="${tabName.toLowerCase()}TimelineContainer" class="timeline-container disabled-container">
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
@@ -798,12 +802,12 @@
                         logLines: [],      // Array to store individual log lines
                         filters: [],       // Array to store active filters
                         logEvents: [],     // Array to store parsed log events
-                        matchingList: [],  // Array to store lines matching current filters
+                        matchingList: null,  // Array to store lines matching current filters
                         logFileName: '',   // Name of the loaded log file
                         eventSpacing: 30,  // Spacing between events in the timeline
                         isLogFileLoaded: false, // Flag to indicate if a log file is loaded
                         startTime: null,   // Start time of the interested timestamp scope
-                        endTime: null      // End time of the interested timestamp scope // Flag to indicate if a log file is loaded
+                        endTime: null      // End time of the interested timestamp scope
                     };
                 },
                 addEventListener: function(tabName) {
@@ -965,11 +969,6 @@
 
         let currentLogType = "";
         let filterFileName = "";
-
-        // Initialize the MatchingEntries in the logData
-        function initializeMatchingEntries(tabName) {
-            tabList[tabName].logData.matchingList = new MatchingEntries();
-        }
 
         // ============== UTILITY AND HELPER FUNCTIONS ==============
         /**
@@ -2106,6 +2105,33 @@
                     document.getElementById(`${tabName.toLowerCase()}EndTime`).value = endTimeStr;
                 }
             }
+        };
+
+        /**
+         * Resets the time range to the full log range for a specific tab.
+         *
+         * This function restores the time range inputs to show the earliest and latest
+         * timestamps found in the log data, effectively removing any time filtering
+         * that the user may have applied.
+         *
+         * @param {string} tabName - The name of the current tab/log type being processed.
+         *
+         * @example
+         * resetTimeRange('Framework');
+         * // This will reset the time range for the Framework log tab to show all log entries
+         *
+         * @note
+         * - Calls updateTimeRangeInputs to recalculate and set the full time range.
+         * - Triggers updateMatchingList and updateDisplayAndTimeline to refresh the UI.
+         * - This function effectively undoes any time range filtering applied by the user.
+         */
+        const resetTimeRange = (tabName) => {
+            // Recalculate and set the full time range
+            updateTimeRangeInputs(tabName);
+
+            // Update the matching list and display with the new (full) time range
+            updateMatchingList();
+            updateDisplayAndTimeline();
         };
 
         /**
