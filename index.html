@@ -379,6 +379,7 @@
                             <button onclick="addFilter()">Add Filter</button>
                             <button onclick="exportFilters()">Export Filters</button>
                             <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <button onclick="clearAllFilters()">Clear Filters</button>
                             <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
@@ -518,6 +519,7 @@
                             <button onclick="addFilter()">Add Filter</button>
                             <button onclick="exportFilters()">Export Filters</button>
                             <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <button onclick="clearAllFilters()">Clear Filters</button>
                             <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
@@ -647,6 +649,7 @@
                             <button onclick="addFilter()">Add Filter</button>
                             <button onclick="exportFilters()">Export Filters</button>
                             <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <button onclick="clearAllFilters()">Clear Filters</button>
                             <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
@@ -776,6 +779,7 @@
                             <button onclick="addFilter()">Add Filter</button>
                             <button onclick="exportFilters()">Export Filters</button>
                             <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                            <button onclick="clearAllFilters()">Clear Filters</button>
                             <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
                             <div id="${tabName.toLowerCase()}Filters"></div>
                         </div>
@@ -1725,6 +1729,41 @@
         };
 
         /**
+         * Clears all filters for the current log type.
+         *
+         * This function removes all filters from the current log type's filter list,
+         * clears the UI, and updates the display accordingly.
+         *
+         * @global {string} currentLogType - The currently active log type.
+         *
+         * @example
+         * // When user clicks "Clear All Filters" button
+         * clearAllFilters();
+         *
+         * @note
+         * - Only works if a log file is loaded (checks isLogFileLoaded).
+         * - Clears all filters from tabList[currentLogType].logData.filters.
+         * - Updates the UI by calling renderFilters(), updateMatchingList(), and updateDisplayAndTimeline().
+         *
+         * @sideEffect
+         * - Empties tabList[currentLogType].logData.filters array.
+         * - Updates the UI to reflect the cleared filters.
+         *
+         * @throws {Error} Implicitly, if DOM elements are not found during the UI update process.
+         */
+        const clearAllFilters = () => {
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
+
+            // Clear all filters for the current log type
+            tabList[currentLogType].logData.filters = [];
+
+            // Update the UI
+            renderFilters();
+            updateMatchingList();
+            updateDisplayAndTimeline();
+        };
+
+        /**
          * Removes a filter from the interface for the current log type.
          * 
          * This function removes a specific filter from the filters array, re-renders the
@@ -2052,7 +2091,6 @@
         const activateFilters = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}FilterContainer`);
             filterContainer.classList.add('active');
-            addFilter();
         };
 
         // =============== LOG PROCESSING FUNCTIONS ===============
