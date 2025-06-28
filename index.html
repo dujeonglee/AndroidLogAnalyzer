@@ -264,6 +264,26 @@
             height: 100px;
             margin-bottom: 10px;
         }
+
+        /* 필터 설명 textarea 스타일링 */
+        .filter-container textarea {
+            font-family: Arial, sans-serif;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        .filter-container textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+        }
+
+        .filter-container textarea::placeholder {
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -389,9 +409,9 @@
                 presetFilter: {
                     // Array of predefined filters for Framework logs
                     'Basic Filter': [
-                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "dynamicLabelRegex": "", "isRegex": false},
-                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "dynamicLabelRegex": "", "isRegex": false},
-                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "dynamicLabelRegex": "", "isRegex": false}
+                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi disconnection event - occurs when device leaves WiFi network"},
+                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi enable event - indicates WiFi interface is turned on"},
+                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi connection attempt - device starts connecting to a network"}
                     ]
                 },
                 openLogTypePost: function(){
@@ -1751,6 +1771,8 @@
                         <span>Regex</span>
                     </div>
                     <button onclick="removeFilter(this)">Remove</button>
+                    <br>
+                    <textarea placeholder="Filter description" rows="2" style="width: 50%; margin-top: 5px; resize: vertical;">${escapeHtml(filter.description || 'N/A')}</textarea>
                 `;
                 filterContainer.appendChild(filterDiv);
             }
@@ -1845,7 +1867,8 @@
                 color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
                 label: '',
                 isRegex: false,
-                dynamicLabelRegex: ''
+                dynamicLabelRegex: '',
+                description: ''
             });
             renderFilters();
         };
@@ -1976,6 +1999,9 @@
             } else if (event.target.type === 'color') {
                 tabList[currentLogType].logData.filters[index].color = event.target.value;
                 updateDisplayAndTimeline();
+            }  else if (event.target.tagName === 'TEXTAREA') {
+                // Description textarea 변경 처리
+                tabList[currentLogType].logData.filters[index].description = event.target.value;
             }
         };
 
@@ -2030,11 +2056,13 @@
             try {
                 const newFilters = JSON.parse(jsonInput.value);
                 if (Array.isArray(newFilters)) {
-                    tabList[currentLogType].logData.filters = newFilters.map(filter => ({
-                        ...filter,
-                        expression: filter.isRegex ? unescapeRegex(filter.expression) : filter.expression,
-                        dynamicLabelRegex: unescapeRegex(filter.dynamicLabelRegex)
-                    }));
+                    newFilters.forEach(filter => {
+                        tabList[currentLogType].logData.filters.push({
+                            ...filter,
+                            checked: true,
+                            description: filter.description || 'N/A'  // preset 필터에도 description 추가
+                        });
+                    });
                     renderFilters();
                     updateMatchingList();
                     updateDisplayAndTimeline();
@@ -2133,12 +2161,12 @@
             filterFileName = file.name;
             const reader = new FileReader();
             reader.onload = function(e) {
-                tabList[currentLogType].logData.filters = JSON.parse(e.target.result);
-                tabList[currentLogType].logData.filters.forEach(filter => {
-                    if (filter.isRegex) {
-                        filter.expression = unescapeRegex(filter.expression);
-                    }
-                    filter.dynamicLabelRegex = unescapeRegex(filter.dynamicLabelRegex);
+                JSON.parse(e.target.result).forEach(filter => {
+                    tabList[currentLogType].logData.filters.push({
+                        ...filter,
+                        checked: true,
+                        description: filter.description || 'N/A'  // preset 필터에도 description 추가
+                    });
                 });
                 updateFilterFileInfo();
                 renderFilters();
@@ -2178,7 +2206,11 @@
 
             if (setName) {
                 tabList[currentLogType].presetFilter[setName].forEach(filter => {
-                    tabList[currentLogType].logData.filters.push({...filter, checked: true});
+                    tabList[currentLogType].logData.filters.push({
+                        ...filter,
+                        checked: true,
+                        description: filter.description || 'N/A'  // preset 필터에도 description 추가
+                    });
                 });
                 renderFilters();
                 updateMatchingList();
