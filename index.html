@@ -130,6 +130,50 @@
             display: block;
         }
 
+        /* Filter collapse/expand styles */
+        /* 필터 헤더 컨테이너 - 클릭 가능한 영역 */
+        .filter-header {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        /* 토글 버튼 스타일 (▶/▼ 화살표 버튼) */
+        .filter-toggle-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 8px;
+            padding: 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        /* 토글 버튼 호버 효과 */
+        .filter-toggle-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 필터 내용 컨테이너 - 접히고 펼쳐지는 영역 */
+        .filter-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        /* 접힌 상태 스타일 */
+        .filter-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        /* 펼쳐진 상태 스타일 */
+        .filter-content.expanded {
+            max-height: 1000px;
+            opacity: 1;
+        }
+
         /* Style for tooltip */
         #tooltip {
             position: absolute;
@@ -345,9 +389,9 @@
                 presetFilter: {
                     // Array of predefined filters for Framework logs
                     'Basic Filter': [
-                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "dynamicLabelRegex": "", "isRegex": false},
-                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "dynamicLabelRegex": "", "isRegex": false},
-                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "dynamicLabelRegex": "", "isRegex": false}
+                        {"checked": true, "expression": "DEAUTH_LEAVING wlan0", "color": "#ff0000", "label": "WiFi Disconnect", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi disconnection event - occurs when device leaves WiFi network"},
+                        {"checked": true, "expression": "WIFI_ENABLED wlan0", "color": "#000000", "label": "WiFi On", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi enable event - indicates WiFi interface is turned on"},
+                        {"checked": true, "expression": "CMD_START_CONNECT wlan0", "color": "#0000ff", "label": "WiFi Connect", "dynamicLabelRegex": "", "isRegex": false, "description": "WiFi connection attempt - device starts connecting to a network"}
                     ]
                 },
                 openLogTypePost: function(){
@@ -368,20 +412,25 @@
                         <h2>${tabName} Log Analysis</h2>
                         <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                        <div class="filter-header" onclick="toggleFilterSection('${tabName}')">
+                            <button class="filter-toggle-btn" id="${tabName.toLowerCase()}FilterToggle">▶</button>
                             <h2>Filters</h2>
-                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
-                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
-                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                                <option value="">Select a preset filter set</option>
-                            </select>
-                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                            <button onclick="addFilter()">Add Filter</button>
-                            <button onclick="exportFilters()">Export Filters</button>
-                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                            <button onclick="clearAllFilters()">Clear Filters</button>
-                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
+                            <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                                <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
+                                <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                    <option value="">Select a preset filter set</option>
+                                </select>
+                                <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                                <button onclick="addFilter()">Add Filter</button>
+                                <button onclick="exportFilters()">Export Filters</button>
+                                <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                                <button onclick="clearAllFilters()">Clear Filters</button>
+                                <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                                <div id="${tabName.toLowerCase()}Filters"></div>
+                            </div>
                         </div>
                         <h2>Timeline</h2>
                         <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
@@ -508,20 +557,25 @@
                         <h2>${tabName} Log Analysis</h2>
                         <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                        <div class="filter-header" onclick="toggleFilterSection('${tabName}')">
+                            <button class="filter-toggle-btn" id="${tabName.toLowerCase()}FilterToggle">▶</button>
                             <h2>Filters</h2>
-                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
-                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
-                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                                <option value="">Select a preset filter set</option>
-                            </select>
-                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                            <button onclick="addFilter()">Add Filter</button>
-                            <button onclick="exportFilters()">Export Filters</button>
-                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                            <button onclick="clearAllFilters()">Clear Filters</button>
-                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
+                            <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                                <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
+                                <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                    <option value="">Select a preset filter set</option>
+                                </select>
+                                <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                                <button onclick="addFilter()">Add Filter</button>
+                                <button onclick="exportFilters()">Export Filters</button>
+                                <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                                <button onclick="clearAllFilters()">Clear Filters</button>
+                                <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                                <div id="${tabName.toLowerCase()}Filters"></div>
+                            </div>
                         </div>
                         <h2>Timeline</h2>
                         <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
@@ -638,20 +692,25 @@
                         <h2>${tabName} Log Analysis</h2>
                         <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                        <div class="filter-header" onclick="toggleFilterSection('${tabName}')">
+                            <button class="filter-toggle-btn" id="${tabName.toLowerCase()}FilterToggle">▶</button>
                             <h2>Filters</h2>
-                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
-                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
-                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                                <option value="">Select a preset filter set</option>
-                            </select>
-                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                            <button onclick="addFilter()">Add Filter</button>
-                            <button onclick="exportFilters()">Export Filters</button>
-                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                            <button onclick="clearAllFilters()">Clear Filters</button>
-                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
+                            <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                                <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
+                                <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                    <option value="">Select a preset filter set</option>
+                                </select>
+                                <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                                <button onclick="addFilter()">Add Filter</button>
+                                <button onclick="exportFilters()">Export Filters</button>
+                                <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                                <button onclick="clearAllFilters()">Clear Filters</button>
+                                <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                                <div id="${tabName.toLowerCase()}Filters"></div>
+                            </div>
                         </div>
                         <h2>Timeline</h2>
                         <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
@@ -768,20 +827,25 @@
                         <h2>${tabName} Log Analysis</h2>
                         <input type="file" id="${tabName.toLowerCase()}FileInput" accept=".txt, .log">
                         <div id="${tabName.toLowerCase()}LogFileInfo" class="file-info"></div>
-                        <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                        <div class="filter-header" onclick="toggleFilterSection('${tabName}')">
+                            <button class="filter-toggle-btn" id="${tabName.toLowerCase()}FilterToggle">▶</button>
                             <h2>Filters</h2>
-                            <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
-                            <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
-                            <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
-                                <option value="">Select a preset filter set</option>
-                            </select>
-                            <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
-                            <button onclick="addFilter()">Add Filter</button>
-                            <button onclick="exportFilters()">Export Filters</button>
-                            <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
-                            <button onclick="clearAllFilters()">Clear Filters</button>
-                            <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
-                            <div id="${tabName.toLowerCase()}Filters"></div>
+                        </div>
+                        <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
+                            <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
+                                <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
+                                <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
+                                    <option value="">Select a preset filter set</option>
+                                </select>
+                                <button onclick="addSelectedPresetFilters()">Add Preset Filters</button>
+                                <button onclick="addFilter()">Add Filter</button>
+                                <button onclick="exportFilters()">Export Filters</button>
+                                <input type="file" id="${tabName.toLowerCase()}ImportInput" accept=".json" onchange="importFilters(event)">
+                                <button onclick="clearAllFilters()">Clear Filters</button>
+                                <div id="${tabName.toLowerCase()}FilterFileInfo" class="file-info"></div>
+                                <div id="${tabName.toLowerCase()}Filters"></div>
+                            </div>
                         </div>
                         <h2>Timeline</h2>
                         <div id="${tabName.toLowerCase()}TimeRangeContainer" class="time-range-container disabled-container">
@@ -1689,6 +1753,64 @@
                     <button onclick="removeFilter(this)">Remove</button>
                 `;
                 filterContainer.appendChild(filterDiv);
+            }
+        };
+
+        /**
+         * 특정 탭의 필터 섹션을 접고 펼치는 토글 함수
+         *
+         * 이 함수는 사용자가 필터 헤더를 클릭했을 때 호출되어 필터 내용의 가시성을
+         * 토글합니다. 기본적으로 필터는 접혀있으며, 클릭할 때마다 상태가 전환됩니다.
+         *
+         * @param {string} tabName - 토글할 탭의 이름 (예: 'Framework', 'Kernel', 'Driver' 등)
+         *
+         * @example
+         * // Framework 탭의 필터 섹션 토글
+         * toggleFilterSection('Framework');
+         *
+         * // 일반적으로 HTML의 onclick 이벤트에서 호출됨
+         * // <div class="filter-header" onclick="toggleFilterSection('Framework')">
+         *
+         * @description
+         * 동작 과정:
+         * 1. 탭 이름을 기반으로 필터 내용 컨테이너와 토글 버튼 요소를 찾음
+         * 2. 현재 상태가 'collapsed'인지 확인
+         * 3. 접혀있다면 → 펼치기: 'expanded' 클래스 추가, 버튼을 '▼'로 변경
+         * 4. 펼쳐져있다면 → 접기: 'collapsed' 클래스 추가, 버튼을 '▶'로 변경
+         *
+         * @note
+         * - CSS transition 효과로 부드러운 애니메이션이 적용됩니다
+         * - 'collapsed' 상태: max-height: 0, opacity: 0
+         * - 'expanded' 상태: max-height: 1000px, opacity: 1
+         * - 버튼 아이콘이 현재 상태를 직관적으로 표시합니다
+         *
+         * @requires
+         * - DOM에 `${tabName.toLowerCase()}FilterContent` ID를 가진 요소 존재
+         * - DOM에 `${tabName.toLowerCase()}FilterToggle` ID를 가진 요소 존재
+         * - CSS에 .collapsed, .expanded 클래스 정의 필요
+         *
+         * @sideEffect
+         * - DOM 요소의 CSS 클래스를 수정합니다
+         * - 토글 버튼의 텍스트 내용을 변경합니다
+         * - 필터 내용의 가시성을 애니메이션과 함께 변경합니다
+         *
+         * @since 버전 정보나 추가된 날짜
+         * @author 작성자 정보
+         */
+        const toggleFilterSection = (tabName) => {
+            const filterContent = document.getElementById(`${tabName.toLowerCase()}FilterContent`);
+            const toggleButton = document.getElementById(`${tabName.toLowerCase()}FilterToggle`);
+
+            if (filterContent.classList.contains('collapsed')) {
+                // 필터 섹션 펼치기
+                filterContent.classList.remove('collapsed');
+                filterContent.classList.add('expanded');
+                toggleButton.textContent = '▼';
+            } else {
+                // 필터 섹션 접기
+                filterContent.classList.remove('expanded');
+                filterContent.classList.add('collapsed');
+                toggleButton.textContent = '▶';
             }
         };
 
