@@ -177,16 +177,32 @@
         /* Style for tooltip */
         #tooltip {
             position: absolute;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 5px;
-            border-radius: 5px;
+            padding: 10px;
+            border-radius: 8px;
             font-size: 12px;
-            max-width: 300px;
+            max-width: 400px;
             word-wrap: break-word;
             z-index: 1000;
             display: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            line-height: 1.4;
         }
+
+        /* 로그 라인 hover 효과 */
+        .log-line {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .log-line:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+
 
         /* Style for filter labels */
         .filter-label {
@@ -2247,6 +2263,78 @@
             filterContainer.classList.add('active');
         };
 
+        const setupLogLineTooltips = (tabName) => {
+            const logContentContainer = document.getElementById(`${tabName.toLowerCase()}LogContent`);
+            const tooltip = document.getElementById('tooltip');
+
+            // 기존 이벤트 리스너 제거 (중복 방지)
+            logContentContainer.removeEventListener('mouseover', handleLogLineMouseOver);
+            logContentContainer.removeEventListener('mouseout', handleLogLineMouseOut);
+            logContentContainer.removeEventListener('mousemove', handleLogLineMouseMove);
+
+            // 새 이벤트 리스너 추가
+            logContentContainer.addEventListener('mouseover', handleLogLineMouseOver);
+            logContentContainer.addEventListener('mouseout', handleLogLineMouseOut);
+            logContentContainer.addEventListener('mousemove', handleLogLineMouseMove);
+        };
+
+        // 마우스 오버 이벤트 핸들러
+        const handleLogLineMouseOver = (event) => {
+            const logLine = event.target.closest('.log-line');
+            if (logLine) {
+                const tooltip = document.getElementById('tooltip');
+                const filterIndex = logLine.dataset.filterIndex;
+                const filter = tabList[currentLogType].logData.filters[filterIndex];
+
+                // 툴팁 내용 설정
+                tooltip.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 5px;">Filter: ${filter.label}</div>
+                    <div style="margin-bottom: 3px;">Expression: ${filter.expression}</div>
+                    <div>Description: ${filter.description}</div>`;
+
+                tooltip.style.display = 'block';
+                tooltip.style.maxWidth = '400px';
+                tooltip.style.whiteSpace = 'normal';
+                tooltip.style.wordWrap = 'break-word';
+            }
+        };
+
+        // 마우스 아웃 이벤트 핸들러
+        const handleLogLineMouseOut = (event) => {
+            const logLine = event.target.closest('.log-line');
+            if (logLine) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.display = 'none';
+            }
+        };
+
+        // 마우스 이동 이벤트 핸들러 (툴팁 위치 업데이트)
+        const handleLogLineMouseMove = (event) => {
+            const logLine = event.target.closest('.log-line');
+            if (logLine) {
+                const tooltip = document.getElementById('tooltip');
+                if (tooltip.style.display === 'block') {
+                    // 툴팁 위치를 마우스 커서 근처로 설정
+                    tooltip.style.left = (event.pageX + 15) + 'px';
+                    tooltip.style.top = (event.pageY + 15) + 'px';
+
+                    // 화면 경계를 벗어나지 않도록 조정
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    const windowWidth = window.innerWidth;
+                    const windowHeight = window.innerHeight;
+
+                    if (tooltipRect.right > windowWidth) {
+                        tooltip.style.left = (event.pageX - tooltipRect.width - 15) + 'px';
+                    }
+
+                    if (tooltipRect.bottom > windowHeight) {
+                        tooltip.style.top = (event.pageY - tooltipRect.height - 15) + 'px';
+                    }
+                }
+            }
+        };
+
+
         // =============== LOG PROCESSING FUNCTIONS ===============
         /**
          * Updates the time range input fields based on the log data for a specific tab.
@@ -2644,7 +2732,6 @@
                     lineElement.classList.add('log-line');
                     lineElement.dataset.index = entry.index;
                     lineElement.dataset.filterIndex = entry.filterIndex;
-                    
                     fragment.appendChild(lineElement);
                 }
             }
@@ -2656,6 +2743,7 @@
             if (document.getElementById(`${currentLogType.toLowerCase()}TimelineContainer`).style.display !== 'none') {
                 drawTimeline();
             }
+            setupLogLineTooltips(currentLogType);
         };
 
         /**
