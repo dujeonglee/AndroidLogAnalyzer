@@ -130,6 +130,35 @@
             display: block;
         }
 
+        /* Scrollable filter list container */
+        .scrollable-filters {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        /* Styling for scrollbar */
+        .scrollable-filters::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable-filters::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .scrollable-filters::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .scrollable-filters::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
         /* Filter collapse/expand styles */
         /* 필터 헤더 컨테이너 - 클릭 가능한 영역 */
         .filter-header {
@@ -1761,6 +1790,7 @@
          * - Creates input elements for filter expression, color, label, and dynamic label regex.
          * - Includes a toggle for regex mode and a remove button for each filter.
          * - Uses the escapeHtml function to prevent XSS vulnerabilities.
+         * - Wraps filter list in a scrollable container for better UX with many filters.
          * 
          * @sideEffect
          * - Modifies the DOM, specifically the element with ID '{currentLogType}Filters'.
@@ -1769,7 +1799,18 @@
          */
         const renderFilters = () => {
             const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}Filters`);
-            filterContainer.innerHTML = '';
+
+            // Create scrollable wrapper if it doesn't exist
+            let scrollableWrapper = filterContainer.querySelector('.scrollable-filters');
+            if (!scrollableWrapper) {
+                scrollableWrapper = document.createElement('div');
+                scrollableWrapper.className = 'scrollable-filters';
+                filterContainer.appendChild(scrollableWrapper);
+            }
+
+            // Clear the scrollable wrapper content
+            scrollableWrapper.innerHTML = '';
+
             for (let filter of tabList[currentLogType].logData.filters) {
                 const filterDiv = document.createElement('div');
                 filterDiv.classList.add('filter-container');
@@ -1790,7 +1831,7 @@
                     <br>
                     <textarea placeholder="Filter description" rows="2" style="width: 50%; margin-top: 5px; resize: vertical;">${escapeHtml(filter.description || 'N/A')}</textarea>
                 `;
-                filterContainer.appendChild(filterDiv);
+                scrollableWrapper.appendChild(filterDiv);
             }
         };
 
