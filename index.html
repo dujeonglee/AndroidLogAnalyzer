@@ -329,6 +329,97 @@
             color: #999;
             font-style: italic;
         }
+
+        .context-lines-input {
+            margin-bottom: 10px;
+        }
+
+        .context-lines-input label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .context-lines-input input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .context-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            display: none;
+        }
+
+        .context-popup-header {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .context-popup-close {
+            background: #ff5555;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .context-popup-close:hover {
+            background: #ff3333;
+        }
+
+        .context-popup-content {
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        .context-line {
+            padding: 2px 0;
+            border-radius: 3px;
+        }
+
+        .context-line.target {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+
+        .context-line.before {
+            color: #666;
+        }
+
+        .context-line.after {
+            color: #666;
+        }
+
+        .context-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -344,6 +435,17 @@
 
     <!-- Tooltip element for displaying additional information -->
     <div id="tooltip"></div>
+
+    <!-- Context popup overlay and popup -->
+    <div id="contextPopupOverlay" class="context-popup-overlay" onclick="closeContextPopup()"></div>
+    <div id="contextPopup" class="context-popup">
+        <div class="context-popup-header">
+            <span>Log Context</span>
+            <button class="context-popup-close" onclick="closeContextPopup()">Close</button>
+        </div>
+        <div class="context-popup-content" id="contextPopupContent"></div>
+    </div>
+
     <script>
         // ============== INITIALIZATION AND CORE STRUCTURE ==============
         class MatchingEntries {
@@ -510,6 +612,10 @@
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
                         <h2>Log</h2>
+                        <div class="context-lines-input">
+                            <label for="${tabName.toLowerCase()}ContextLines">Context Lines:</label>
+                            <input type="number" id="${tabName.toLowerCase()}ContextLines" min="1" max="100" value="5">
+                        </div>
                         <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
                     `;
 
@@ -655,6 +761,10 @@
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
                         <h2>Log</h2>
+                        <div class="context-lines-input">
+                            <label for="${tabName.toLowerCase()}ContextLines">Context Lines:</label>
+                            <input type="number" id="${tabName.toLowerCase()}ContextLines" min="1" max="100" value="5">
+                        </div>
                         <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
                     `;
 
@@ -790,6 +900,10 @@
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
                         <h2>Log</h2>
+                        <div class="context-lines-input">
+                            <label for="${tabName.toLowerCase()}ContextLines">Context Lines:</label>
+                            <input type="number" id="${tabName.toLowerCase()}ContextLines" min="1" max="100" value="5">
+                        </div>
                         <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
                     `;
 
@@ -925,6 +1039,10 @@
                             <canvas id="${tabName.toLowerCase()}TimelineCanvas"></canvas>
                         </div>
                         <h2>Log</h2>
+                        <div class="context-lines-input">
+                            <label for="${tabName.toLowerCase()}ContextLines">Context Lines:</label>
+                            <input type="number" id="${tabName.toLowerCase()}ContextLines" min="1" max="100" value="5">
+                        </div>
                         <div id="${tabName.toLowerCase()}LogContent" class="log-content"></div>
                     `;
 
@@ -2311,11 +2429,13 @@
             logContentContainer.removeEventListener('mouseover', handleLogLineMouseOver);
             logContentContainer.removeEventListener('mouseout', handleLogLineMouseOut);
             logContentContainer.removeEventListener('mousemove', handleLogLineMouseMove);
+            logContentContainer.removeEventListener('click', handleLogLineClick);
 
             // 새 이벤트 리스너 추가
             logContentContainer.addEventListener('mouseover', handleLogLineMouseOver);
             logContentContainer.addEventListener('mouseout', handleLogLineMouseOut);
             logContentContainer.addEventListener('mousemove', handleLogLineMouseMove);
+            logContentContainer.addEventListener('click', handleLogLineClick);
         };
 
         // 마우스 오버 이벤트 핸들러
@@ -2374,6 +2494,81 @@
             }
         };
 
+        const showContextPopup = (lineIndex) => {
+            console.log(`showContextPopup`);
+
+            // Context Lines 설정값 읽기
+            const contextLinesInput = document.getElementById(`${currentLogType.toLowerCase()}ContextLines`);
+            const contextLines = parseInt(contextLinesInput.value) || 5;
+
+            // 전체 로그 라인 배열
+            const logLines = tabList[currentLogType].logData.logLines;
+
+            // 표시할 범위 계산 (배열 범위를 벗어나지 않도록 제한)
+            const startIndex = Math.max(0, lineIndex - contextLines);
+            const endIndex = Math.min(logLines.length - 1, lineIndex + contextLines);
+
+            // 팝업 내용 컨테이너
+            const contextContent = document.getElementById('contextPopupContent');
+            contextContent.innerHTML = '';
+
+            // 컨텍스트 라인들 생성
+            for (let i = startIndex; i <= endIndex; i++) {
+                const line = logLines[i];
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'context-line';
+
+                // 라인 유형에 따른 CSS 클래스 추가
+                if (i === lineIndex) {
+                    lineDiv.className += ' target';        // 클릭된 라인 (노란색 하이라이트)
+                } else if (i < lineIndex) {
+                    lineDiv.className += ' before';        // 이전 라인들 (회색)
+                } else {
+                    lineDiv.className += ' after';         // 이후 라인들 (회색)
+                }
+
+                // 라인 번호와 내용 설정 (1부터 시작하는 라인 번호)
+                lineDiv.textContent = `${i + 1}: ${line}`;
+                contextContent.appendChild(lineDiv);
+            }
+
+            // 팝업 표시
+            document.getElementById('contextPopupOverlay').style.display = 'block';
+            document.getElementById('contextPopup').style.display = 'block';
+        };
+
+
+        /**
+         * 컨텍스트 팝업 닫기 함수
+         */
+        const closeContextPopup = () => {
+            document.getElementById('contextPopupOverlay').style.display = 'none';
+            document.getElementById('contextPopup').style.display = 'none';
+        };
+
+        const handleLogLineClick = (event) => {
+            try {
+                const logLine = event.target.closest('.log-line');
+                if (!logLine) return;  // 로그 라인이 아닌 곳을 클릭한 경우 무시
+
+                const lineIndex = parseInt(logLine.dataset.index);
+                if (isNaN(lineIndex)) {
+                    console.error('Invalid line index:', logLine.dataset.index);
+                    return;
+                }
+
+                // 인덱스가 유효한 범위 내에 있는지 확인
+                const logLines = tabList[currentLogType].logData.logLines;
+                if (lineIndex < 0 || lineIndex >= logLines.length) {
+                    console.error('Line index out of range:', lineIndex);
+                    return;
+                }
+
+                showContextPopup(lineIndex);
+            } catch (error) {
+                console.error('Error handling log line click:', error);
+            }
+        };
 
         // =============== LOG PROCESSING FUNCTIONS ===============
         /**
