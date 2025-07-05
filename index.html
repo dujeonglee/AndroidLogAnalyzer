@@ -2495,8 +2495,6 @@
         };
 
         const showContextPopup = (lineIndex) => {
-            console.log(`showContextPopup`);
-
             // Context Lines 설정값 읽기
             const contextLinesInput = document.getElementById(`${currentLogType.toLowerCase()}ContextLines`);
             const contextLines = parseInt(contextLinesInput.value) || 5;
