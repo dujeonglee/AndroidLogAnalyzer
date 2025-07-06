@@ -585,6 +585,10 @@
                         </div>
                         <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
                             <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <div style="margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+                                    <input type="checkbox" id="${tabName.toLowerCase()}SelectAllFilters" checked>
+                                    <label for="${tabName.toLowerCase()}SelectAllFilters" style="font-weight: bold; margin-left: 5px;">Select All Filters</label>
+                                </div>
                                 <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
                                 <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                                 <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
@@ -673,6 +677,10 @@
                     } else {
                         console.warn(`Element with id '${fileInputId}' not found.`);
                     }
+                    const selectAllCheckbox = document.getElementById(`${tabName.toLowerCase()}SelectAllFilters`);
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.addEventListener('change', (event) => toggleAllFilters(event.target));
+                    }
 
                     initializeTimelineInteractions(tabName);
                 },
@@ -734,6 +742,10 @@
                         </div>
                         <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
                             <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <div style="margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+                                    <input type="checkbox" id="${tabName.toLowerCase()}SelectAllFilters" checked>
+                                    <label for="${tabName.toLowerCase()}SelectAllFilters" style="font-weight: bold; margin-left: 5px;">Select All Filters</label>
+                                </div>
                                 <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
                                 <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                                 <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
@@ -873,6 +885,10 @@
                         </div>
                         <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
                             <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <div style="margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+                                    <input type="checkbox" id="${tabName.toLowerCase()}SelectAllFilters" checked>
+                                    <label for="${tabName.toLowerCase()}SelectAllFilters" style="font-weight: bold; margin-left: 5px;">Select All Filters</label>
+                                </div>
                                 <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
                                 <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                                 <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
@@ -1012,6 +1028,10 @@
                         </div>
                         <div class="filter-content collapsed" id="${tabName.toLowerCase()}FilterContent">
                             <div id="${tabName.toLowerCase()}FilterContainer" class="filter-container disabled-container">
+                                <div style="margin-bottom: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+                                    <input type="checkbox" id="${tabName.toLowerCase()}SelectAllFilters" checked>
+                                    <label for="${tabName.toLowerCase()}SelectAllFilters" style="font-weight: bold; margin-left: 5px;">Select All Filters</label>
+                                </div>
                                 <textarea id="${tabName.toLowerCase()}jsonInput" class="jsonInput" placeholder="Paste your JSON filter data here"></textarea>
                                 <button onclick="updateFiltersFromJson()">Update Filters from JSON</button><br>
                                 <select id="${tabName.toLowerCase()}PresetFilterSets" class="filter-dropdown">
@@ -1951,6 +1971,7 @@
                 `;
                 scrollableWrapper.appendChild(filterDiv);
             }
+            updateSelectAllCheckbox();
         };
 
         /**
@@ -2046,6 +2067,7 @@
                 description: ''
             });
             renderFilters();
+            updateSelectAllCheckbox();
         };
 
         /**
@@ -2079,8 +2101,98 @@
 
             // Update the UI
             renderFilters();
+            updateSelectAllCheckbox();
             updateMatchingList();
             updateDisplayAndTimeline();
+        };
+
+        /**
+         * Toggles all filters' checked state based on the Select All checkbox.
+         *
+         * This function checks or unchecks all filters for the current log type
+         * when the "Select All" checkbox is toggled.
+         *
+         * @param {HTMLElement} selectAllCheckbox - The Select All checkbox element.
+         * @global {string} currentLogType - The currently active log type.
+         *
+         * @example
+         * // Typically called from an onchange event on the Select All checkbox
+         * <input type="checkbox" onchange="toggleAllFilters(this)">
+         *
+         * @note
+         * - Updates all individual filter checkboxes to match the Select All state.
+         * - Calls updateDisplayAndTimeline() to refresh the UI after the change.
+         *
+         * @sideEffect
+         * - Modifies all filters' checked property in tabList[currentLogType].logData.filters.
+         * - Updates the UI to reflect the new filter states.
+         */
+        const toggleAllFilters = (selectAllCheckbox) => {
+            if (!tabList[currentLogType].logData.isLogFileLoaded) return;
+
+            const isChecked = selectAllCheckbox.checked;
+
+            // Update all filters' checked state
+            tabList[currentLogType].logData.filters.forEach(filter => {
+                filter.checked = isChecked;
+            });
+
+            // Update the UI checkboxes - 필터의 첫 번째 체크박스만 선택
+            const filterContainer = document.getElementById(`${currentLogType.toLowerCase()}Filters`);
+            const filterDivs = filterContainer.querySelectorAll('.filter-container');
+            filterDivs.forEach(filterDiv => {
+                const firstCheckbox = filterDiv.querySelector('input[type="checkbox"]:first-of-type');
+                if (firstCheckbox) {
+                    firstCheckbox.checked = isChecked;
+                }
+            });
+
+            // Update display and timeline
+            updateDisplayAndTimeline();
+        };
+
+
+
+        /**
+         * Updates the Select All checkbox state based on individual filter states.
+         *
+         * This function checks the state of all individual filters and updates the
+         * Select All checkbox accordingly (checked if all are checked, unchecked if none are checked,
+         * indeterminate if some are checked).
+         *
+         * @global {string} currentLogType - The currently active log type.
+         *
+         * @note
+         * - Sets the Select All checkbox to checked if all filters are checked.
+         * - Sets it to unchecked if no filters are checked.
+         * - Sets it to indeterminate if some filters are checked.
+         *
+         * @sideEffect
+         * - Modifies the Select All checkbox's checked and indeterminate properties.
+         */
+        const updateSelectAllCheckbox = () => {
+            const selectAllCheckbox = document.getElementById(`${currentLogType.toLowerCase()}SelectAllFilters`);
+            if (!selectAllCheckbox) return;
+
+            const filters = tabList[currentLogType].logData.filters;
+            if (filters.length === 0) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+                return;
+            }
+
+            const checkedFilters = filters.filter(filter => filter.checked).length;
+
+            if (checkedFilters === filters.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedFilters === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
         };
 
         /**
@@ -2113,6 +2225,7 @@
             const index = Array.from(filterDiv.parentNode.children).indexOf(filterDiv);
             tabList[currentLogType].logData.filters.splice(index, 1);
             renderFilters();
+            updateSelectAllCheckbox();
             updateMatchingList();
             updateDisplayAndTimeline();
         };
@@ -2150,6 +2263,7 @@
             if (event.target.type === 'checkbox') {
                 if (!event.target.closest('.toggle-switch')) {
                     tabList[currentLogType].logData.filters[index].checked = event.target.checked;
+                    updateSelectAllCheckbox();
                     updateDisplayAndTimeline();
                 } else {
                     tabList[currentLogType].logData.filters[index].isRegex = event.target.checked;
@@ -2239,6 +2353,7 @@
                         });
                     });
                     renderFilters();
+                    updateSelectAllCheckbox();
                     updateMatchingList();
                     updateDisplayAndTimeline();
                 } else {
@@ -2344,6 +2459,7 @@
                 });
                 updateFilterFileInfo();
                 renderFilters();
+                updateSelectAllCheckbox();
                 updateMatchingList();
                 updateDisplayAndTimeline();
             };
@@ -2387,6 +2503,7 @@
                     });
                 });
                 renderFilters();
+                updateSelectAllCheckbox();
                 updateMatchingList();
                 updateDisplayAndTimeline();
                 setDropdown.value = '';
