@@ -3123,6 +3123,7 @@
          * Updates the list of log entries that match the current filters and time range.
          * This function ensures that each log line is matched by only one filter,
          * prioritizing the filter with the longest matching content.
+         * Additionally, it prevents duplicate log entries from being displayed.
          * 
          * @global {string} currentLogType - The currently active log type.
          * 
@@ -3130,6 +3131,7 @@
          * - Clears the existing matchingList before rebuilding it.
          * - Iterates through all log lines within the specified time range.
          * - For each line, finds the best matching filter based on match length.
+         * - Prevents duplicate entries by checking if the exact same log line already exists.
          * - Inserts the best match into the matchingList, maintaining sorted order.
          * - Adjusts event spacing for timeline display after processing all lines.
          * 
@@ -3142,6 +3144,7 @@
          const updateMatchingList = () => {
             tabList[currentLogType].logData.matchingList.clear();
             const filters = tabList[currentLogType].logData.filters;
+            const processedLines = new Set(); // 중복 방지를 위한 Set
 
             if (filters.length === 0) return;
 
@@ -3149,6 +3152,12 @@
                 let [timestampStr, timestamp] = tabList[currentLogType].parseTimestamp(line);
                 if (timestampStr === "") continue;
                 if (timestamp < tabList[currentLogType].logData.startTime || timestamp > tabList[currentLogType].logData.endTime) continue;
+
+                // 중복 로그 체크: 동일한 타임스탬프와 내용을 가진 로그가 이미 처리되었는지 확인
+                const lineKey = `${timestampStr}:${line}`;
+                if (processedLines.has(lineKey)) {
+                    continue; // 중복된 로그는 건너뜀
+                }
 
                 let bestMatch = null;
                 let bestMatchLength = 0;
@@ -3170,6 +3179,7 @@
                 }
 
                 if (bestMatch) {
+                    processedLines.add(lineKey); // 처리된 로그로 기록
                     tabList[currentLogType].logData.matchingList.add(bestMatch);
                 }
             }
